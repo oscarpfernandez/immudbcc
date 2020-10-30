@@ -35,8 +35,16 @@ func main() {
 
 	ctx := context.Background()
 
+	key2, value2 := []byte("client:Ms. Joane Doe"), []byte("MasterCard Baller 12/19")
+	verifiedIndex, err := client.SafeSet(ctx, key2, value2)
+	if err != nil {
+		exit(err)
+	}
+	fmt.Println("   SafeSet - add and verify entry:")
+	printItem(key2, value2, verifiedIndex)
+
 	key3, value3 := []byte("client:Ms. Maci Schuppe"), []byte("MasterCard 2232703813463070 12/19")
-	verifiedIndex, err := client.SafeSet(ctx, key3, value3)
+	verifiedIndex, err = client.SafeSet(ctx, key3, value3)
 	if err != nil {
 		exit(err)
 	}
@@ -59,6 +67,18 @@ func main() {
 	}
 	fmt.Println("   SafeReference - add and verify a reference key to an existing entry:")
 	printItem(key3Ref, value3, verifiedIndex)
+
+	//------> Scan
+	prefix := []byte("client:Ms.")
+	structuredItemList, err := client.Scan(ctx, prefix)
+	if err != nil {
+		exit(err)
+	}
+	fmt.Printf("   Scan - iterate over keys having the specified prefix (e.g. \"%s\"):\n", prefix)
+	for _, item := range structuredItemList.Items {
+		printItem(nil, nil, item)
+		fmt.Println("	------")
+	}
 
 }
 

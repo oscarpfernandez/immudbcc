@@ -5,49 +5,29 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
-	immulogger "github.com/codenotary/immudb/pkg/logger"
-	immuserver "github.com/codenotary/immudb/pkg/server"
+	"github.com/oscarpfernandez/immudbcc/pkg/server"
 )
 
 func main() {
-	fmt.Println("1. Start immudb server ...")
-	const logfile = "immuserver.log"
-	flogger, file, err :=
-		immulogger.NewFileLogger("immuserver ", logfile)
-	if err != nil {
-		exit(err)
-	}
+	dbServer, err := server.New(server.Config{AuthEnabled: false, LogFile: "immuserver.log"})
+
+	log.Print("Starting ImmuDB Server...")
+	dbServer.Start()
 	defer func() {
-		if err = file.Close(); err != nil {
-			exit(err)
+		if err := dbServer.Stop(); err != nil {
+			log.Fatalf("Failed to stop server: %v", err)
 		}
+		log.Print("Stopped ImmuDB Server")
 	}()
-	serverOptions := immuserver.DefaultOptions().WithLogfile(logfile).WithAuth(false)
-	server := immuserver.DefaultServer().WithOptions(serverOptions).WithLogger(flogger)
-	go func() {
-		if err := server.Start(); err != nil {
-			exit(err)
-		}
-	}()
-	defer func() {
-		err := server.Stop()
-		// NOTE: this cleanup must NOT be done in a real-world scenario!
-		cleanup(serverOptions.Dir, serverOptions.Logfile)
-		if err != nil {
-			exit(err)
-		}
-	}()
-	// wait for server to start
+
 	time.Sleep(100 * time.Millisecond)
 
-	options := immuclient.DefaultOptions()
-	options.Auth = false
+	options := immuclient.DefaultOptions().WithAuth(false)
 	client, err := immuclient.NewImmuClient(options)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
@@ -142,18 +122,4 @@ func printItem(key []byte, value []byte, message interface{}) {
 func exit(err error) {
 	_, _ = fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
-}
-
-func cleanup(dbDir string, logfile string) {
-	// remove db
-	os.RemoveAll(dbDir)
-	// remove log file
-	os.Remove(logfile)
-	// remove root
-	files, err := filepath.Glob("./\\.root*")
-	if err == nil {
-		for _, f := range files {
-			os.Remove(f)
-		}
-	}
 }

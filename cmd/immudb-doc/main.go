@@ -35,7 +35,7 @@ func main() {
 
 	ctx := context.Background()
 
-	key2, value2 := []byte("client:Ms. Joane Doe"), []byte("MasterCard Baller 12/19")
+	key2, value2 := []byte("client/employee/name/string"), []byte("MasterCard Baller 12/19")
 	verifiedIndex, err := client.SafeSet(ctx, key2, value2)
 	if err != nil {
 		exit(err)
@@ -43,7 +43,7 @@ func main() {
 	fmt.Println("   SafeSet - add and verify entry:")
 	printItem(key2, value2, verifiedIndex)
 
-	key3, value3 := []byte("client:Ms. Maci Schuppe"), []byte("MasterCard 2232703813463070 12/19")
+	key3, value3 := []byte("client/employee/name/string"), []byte("MasterCard 2232703813463070 12/19")
 	verifiedIndex, err = client.SafeSet(ctx, key3, value3)
 	if err != nil {
 		exit(err)

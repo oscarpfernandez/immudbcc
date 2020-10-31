@@ -53,33 +53,7 @@ func (d *DocumentManager) GeneratePropertyList(r io.Reader) error {
 		return fmt.Errorf("unable to unmarshall payload: %v", err)
 	}
 
-	// https://www.w3schools.com/js/js_json_datatypes.asp
-	for key, value := range docMap {
-		switch value.(type) {
-		case nil:
-
-		case string:
-
-		case int64:
-
-		case uint64:
-
-		case float32:
-
-		case float64:
-
-		case bool:
-
-		case []interface{}:
-
-		case map[string]interface{}:
-
-		case []map[string]interface{}:
-
-		}
-
-		_ = key
-	}
+	d.PropertyEntryList = CreatePropertyList([]string{d.docID}, docMap)
 
 	return nil
 }

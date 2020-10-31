@@ -32,6 +32,8 @@ github.com/codenotary/immudb/pkg/store
 github.com/codenotary/immudb/pkg/store/sysstore
 # github.com/codenotary/merkletree v0.1.2-0.20200720105344-68d95395a656
 github.com/codenotary/merkletree
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
 # github.com/dgraph-io/badger/v2 v2.0.0-20200408100755-2e708d968e94
 github.com/dgraph-io/badger/v2
 github.com/dgraph-io/badger/v2/options
@@ -86,6 +88,7 @@ github.com/hashicorp/hcl/json/token
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
 # github.com/magiconair/properties v1.8.1
+## explicit
 github.com/magiconair/properties
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
@@ -99,6 +102,8 @@ github.com/o1egl/paseto
 github.com/pelletier/go-toml
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.5.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -129,6 +134,9 @@ github.com/spf13/jwalterweatherman
 github.com/spf13/pflag
 # github.com/spf13/viper v1.6.3
 github.com/spf13/viper
+# github.com/stretchr/testify v1.5.1
+## explicit
+github.com/stretchr/testify/assert
 # github.com/subosito/gotenv v1.2.0
 github.com/subosito/gotenv
 # golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5

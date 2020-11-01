@@ -21,8 +21,8 @@ func TestCreatePropertyList(t *testing.T) {
 			jsonPayload: []byte(`{
 				"employee":{
 					"index": 18446744073709551615,
-					"name": "John", 
-					"age": 30, 
+					"name": "John",
+					"age": 30,
 					"city": "New York",
 					"active": true
 				}
@@ -113,7 +113,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/topping/[6]/type/string", Value: []byte("Maple")},
 			},
 		},
-		"large": {
+		"Transform Large object array": {
 			prefix: "objectID",
 			jsonPayload: []byte(`[
 			  {

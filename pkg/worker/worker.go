@@ -11,7 +11,7 @@ import (
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
 )
 
-type WriteWorker struct {
+type WriteWorkerPool struct {
 	numWorkers   int
 	client       immuclient.ImmuClient
 	jobChan      chan doc.PropertyEntry
@@ -25,8 +25,8 @@ type WriteWorker struct {
 	closeOnce sync.Once
 }
 
-func NewWriteWorker(numWorkers int, client immuclient.ImmuClient) *WriteWorker {
-	return &WriteWorker{
+func NewWriteWorkerPool(numWorkers int, client immuclient.ImmuClient) *WriteWorkerPool {
+	return &WriteWorkerPool{
 		numWorkers:   numWorkers,
 		client:       client,
 		jobChan:      make(chan doc.PropertyEntry, 100),
@@ -37,7 +37,7 @@ func NewWriteWorker(numWorkers int, client immuclient.ImmuClient) *WriteWorker {
 	}
 }
 
-func (w *WriteWorker) Start(ctx context.Context) {
+func (w *WriteWorkerPool) Start(ctx context.Context) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -52,7 +52,7 @@ func (w *WriteWorker) Start(ctx context.Context) {
 	w.isStarted = true
 }
 
-func (w *WriteWorker) Write(properties doc.PropertyEntryList) <-chan error {
+func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) <-chan error {
 	go func() {
 		for _, propEntry := range properties {
 			w.jobChan <- propEntry
@@ -62,7 +62,7 @@ func (w *WriteWorker) Write(properties doc.PropertyEntryList) <-chan error {
 	return w.errChan
 }
 
-func (w *WriteWorker) Stop() {
+func (w *WriteWorkerPool) Stop() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -79,7 +79,7 @@ func (w *WriteWorker) Stop() {
 	})
 }
 
-func (w *WriteWorker) worker(ctx context.Context) {
+func (w *WriteWorkerPool) worker(ctx context.Context) {
 	defer w.wg.Done()
 	for {
 		select {

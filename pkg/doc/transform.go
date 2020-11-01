@@ -2,6 +2,7 @@ package doc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -49,17 +50,22 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 
 	var rawObject interface{}
 
-	for _, property := range properties {
+	for idx, property := range properties {
 		keys, vType := property.DissectKeyURI()
 		value := property.Value
+		fmt.Printf("property: %s\n", property)
 
 		if strings.HasPrefix(keys[0], "[") && strings.HasSuffix(keys[0], "]") {
 			// Arrays case.
-			rawObject = []interface{}{}
+			if idx == 0 {
+				rawObject = []interface{}{}
+			}
 			propertyListToRaw(rawObject, keys[1:], vType, value)
 		} else {
 			// Map case.
-			rawObject = map[string]interface{}{}
+			if idx == 0 {
+				rawObject = map[string]interface{}{}
+			}
 			propertyListToRaw(rawObject, keys[1:], vType, value)
 		}
 	}
@@ -68,6 +74,8 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 }
 
 func propertyListToRaw(parentObject interface{}, keys []string, valueType string, value []byte) {
+	fmt.Printf("keys: %s\n", keys)
+	fmt.Printf("valueType :%s\n", valueType)
 	// Leaf object
 	if len(keys) == 1 {
 		switch object := parentObject.(type) {
@@ -79,7 +87,8 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 			case "string":
 				object[keys[0]] = string(value)
 			case "bool":
-				object[keys[0]] = string(value) == "true"
+				object[keys[0]] = (string(value) == "true")
+				fmt.Printf("BOLEAN CASE")
 			case "float64":
 				object[keys[0]] = binaryToFloat64(value)
 			}
@@ -112,9 +121,12 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 			}
 			propertyListToRaw(object[keys[0]], keys[1:], valueType, value)
 		} else {
-			// Map case.
+			var childMap map[string]interface{}
 			if object[keys[0]] == nil {
-				object[keys[0]] = map[string]interface{}{}
+				childMap = map[string]interface{}{}
+				object[keys[0]] = childMap
+			} else {
+				childMap = object[keys[0]].(map[string]interface{})
 			}
 			propertyListToRaw(object[keys[0]], keys[1:], valueType, value)
 		}

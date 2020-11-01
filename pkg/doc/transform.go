@@ -87,7 +87,7 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 			case "string":
 				object[keys[0]] = string(value)
 			case "bool":
-				object[keys[0]] = (string(value) == "true")
+				object[keys[0]] = string(value) == "true"
 				fmt.Printf("BOLEAN CASE")
 			case "float64":
 				object[keys[0]] = binaryToFloat64(value)
@@ -115,11 +115,20 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 	// Intermediate node object is a map.
 	case map[string]interface{}:
 		if strings.HasPrefix(keys[0], "[") && strings.HasSuffix(keys[0], "]") {
+			index, _ := strconv.Atoi(strings.Trim(keys[0], "[]"))
 			// Arrays case.
 			if object[keys[0]] == nil {
 				object[keys[0]] = []interface{}{}
 			}
-			propertyListToRaw(object[keys[0]], keys[1:], valueType, value)
+			childSlice := object[keys[0]].([]interface{})
+			if childSlice == nil {
+				childSlice = make([]interface{}, index+1)
+			} else {
+				newSlice := make([]interface{}, index+1)
+				copy(newSlice, childSlice)
+				childSlice = newSlice
+			}
+			propertyListToRaw(childSlice, keys[1:], valueType, value)
 		} else {
 			var childMap map[string]interface{}
 			if object[keys[0]] == nil {
@@ -128,14 +137,12 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 			} else {
 				childMap = object[keys[0]].(map[string]interface{})
 			}
-			propertyListToRaw(object[keys[0]], keys[1:], valueType, value)
+			propertyListToRaw(childMap, keys[1:], valueType, value)
 		}
 	case []interface{}:
 		// If we are in an array the only elements admissible are objects or
 		// basic types, given that arrays of arrays are not possible in JSON.
-		newMap := map[string]interface{}{}
-		object = append(object, newMap)
-		propertyListToRaw(newMap, keys[1:], valueType, value)
+		propertyListToRaw(object, keys[1:], valueType, value)
 	}
 }
 

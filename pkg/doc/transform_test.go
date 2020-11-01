@@ -643,6 +643,22 @@ func TestCreatePropertyList(t *testing.T) {
 			}
 
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
+
+			// Reverse
+
+			var object2 interface{}
+			if err := json.NewDecoder(bytes.NewReader(test.jsonPayload)).Decode(&object2); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			rawMap := PropertyListToRaw(test.expList)
+
+			gotPayload, err := json.Marshal(rawMap)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			assert.JSONEq(t, string(test.jsonPayload), string(gotPayload), "list should match")
 		})
 	}
 }

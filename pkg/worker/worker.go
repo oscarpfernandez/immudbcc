@@ -3,9 +3,6 @@ package worker
 import (
 	"context"
 	"sync"
-	"time"
-
-	immuapi "github.com/codenotary/immudb/pkg/api"
 
 	immuclient "github.com/codenotary/immudb/pkg/client"
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
@@ -87,20 +84,19 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 			func() {
 				key, value := []byte(job.KeyURI), job.Value
 
-				ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 				vi, err := w.client.SafeSet(ctx, key, value)
 				if err != nil {
 					w.errChan <- err
 					return
 				}
-				defer cancel()
 
-				digest := immuapi.Digest(vi.Index, key, value)
-
-				w.resultChan <- doc.PropertyHash{Index: vi.Index, Hash: digest[:]}
+				w.resultChan <- doc.PropertyHashDigest(vi.Index, key, value)
 			}()
 
 		case <-w.shutdownChan:
+			return
+
+		case <-ctx.Done():
 			return
 		}
 	}

@@ -635,7 +635,7 @@ func TestCreatePropertyList(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			gotList := CreatePropertyList([]string{test.prefix}, object)
+			gotList := RawToPropertyList([]string{test.prefix}, object)
 
 			for _, elem := range gotList {
 				fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
@@ -645,4 +645,51 @@ func TestCreatePropertyList(t *testing.T) {
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
 		})
 	}
+}
+
+func TestFromPropertyList(t *testing.T) {
+	tests := map[string]struct {
+		prefix         string
+		propertyList   PropertyEntryList
+		expJSONPayload []byte
+	}{
+		"Transforms flat structure": {
+			prefix: "prefix1",
+			propertyList: PropertyEntryList{
+				{KeyURI: "prefix1/employee/name/string", Value: []byte("John")},
+				{KeyURI: "prefix1/employee/age/float64", Value: float64ToBinary(30)},
+				{KeyURI: "prefix1/employee/index/float64", Value: float64ToBinary(18446744073709551615)},
+				{KeyURI: "prefix1/employee/city/string", Value: []byte("New York")},
+				{KeyURI: "prefix1/employee/active/bool", Value: []byte(strconv.FormatBool(true))},
+			},
+			expJSONPayload: []byte(`{
+				"employee":{
+					"index": 18446744073709551615,
+					"name": "John",
+					"age": 30,
+					"city": "New York",
+					"active": true
+				}
+			}`),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var object interface{}
+			if err := json.NewDecoder(bytes.NewReader(test.expJSONPayload)).Decode(&object); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			rawMap := PropertyListToRaw(test.propertyList)
+
+			gotPayload, err := json.Marshal(rawMap)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			assert.JSONEq(t, string(test.expJSONPayload), string(gotPayload), "list should match")
+		})
+	}
+
 }

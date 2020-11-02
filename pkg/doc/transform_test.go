@@ -54,7 +54,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix2/age/float64", Value: float64ToBinary(30)},
 			},
 		},
-		"Transform object array": {
+		"Transform object arrays": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{ 
 				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"],
@@ -77,6 +77,20 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/nested/tags/[3]/string", Value: []byte("tag10")},
 				{KeyURI: "prefix1/nested/tags/[4]/string", Value: []byte("tag11")},
 				{KeyURI: "prefix1/nested/tags/[5]/string", Value: []byte("tag12")},
+			},
+		},
+		"Transform object array": {
+			prefix: "prefix1",
+			jsonPayload: []byte(`{ 
+				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"]
+			}`),
+			expList: PropertyEntryList{
+				{KeyURI: "prefix1/tags/[0]/string", Value: []byte("tag1")},
+				{KeyURI: "prefix1/tags/[1]/string", Value: []byte("tag2")},
+				{KeyURI: "prefix1/tags/[2]/string", Value: []byte("tag3")},
+				{KeyURI: "prefix1/tags/[3]/string", Value: []byte("tag4")},
+				{KeyURI: "prefix1/tags/[4]/string", Value: []byte("tag5")},
+				{KeyURI: "prefix1/tags/[5]/string", Value: []byte("tag6")},
 			},
 		},
 		"Transforms nested object array": {
@@ -713,7 +727,7 @@ func TestFromPropertyList(t *testing.T) {
 				}
 			}`),
 		},
-		"Transform object array": {
+		"Transform nested object array": {
 			prefix: "prefix1",
 			expJSONPayload: []byte(`{ 
 				"top-tags": ["tag1","tag2","tag3","tag4","tag5","tag6"],
@@ -736,6 +750,20 @@ func TestFromPropertyList(t *testing.T) {
 				{KeyURI: "prefix1/nested/nested-tags/[3]/string", Value: []byte("tag10")},
 				{KeyURI: "prefix1/nested/nested-tags/[4]/string", Value: []byte("tag11")},
 				{KeyURI: "prefix1/nested/nested-tags/[5]/string", Value: []byte("tag12")},
+			},
+		},
+		"Transform object array": {
+			prefix: "prefix1",
+			expJSONPayload: []byte(`{ 
+				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"]
+			}`),
+			propertyList: PropertyEntryList{
+				{KeyURI: "prefix1/tags/[0]/string", Value: []byte("tag1")},
+				{KeyURI: "prefix1/tags/[1]/string", Value: []byte("tag2")},
+				{KeyURI: "prefix1/tags/[2]/string", Value: []byte("tag3")},
+				{KeyURI: "prefix1/tags/[3]/string", Value: []byte("tag4")},
+				{KeyURI: "prefix1/tags/[4]/string", Value: []byte("tag5")},
+				{KeyURI: "prefix1/tags/[5]/string", Value: []byte("tag6")},
 			},
 		},
 	}

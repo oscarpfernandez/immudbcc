@@ -2,6 +2,7 @@ package doc
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -34,8 +35,9 @@ func RawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 		}
 
 	case []interface{}:
+		vLen := len(v)
 		for idx, arrElem := range v {
-			keys = append(keys, "["+strconv.Itoa(idx)+"]")
+			keys = append(keys, "["+strconv.Itoa(idx)+"."+strconv.Itoa(vLen)+"]")
 			subList := RawToPropertyList(keys, arrElem)
 			list = append(list, subList...)
 			removeLastElement(&keys)
@@ -53,7 +55,7 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	for idx, property := range properties {
 		keys, vType := property.DissectKeyURI()
 		value := property.Value
-		fmt.Printf("property: %s\n", property)
+		//fmt.Printf("property: %s\n", property)
 
 		if strings.HasPrefix(keys[0], "[") && strings.HasSuffix(keys[0], "]") {
 			// Arrays case.
@@ -74,8 +76,9 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 }
 
 func propertyListToRaw(parentObject interface{}, keys []string, valueType string, value []byte) {
-	fmt.Printf("keys: %s\n", keys)
-	fmt.Printf("valueType :%s\n", valueType)
+	//fmt.Printf("keys: %s\n", keys)
+	//fmt.Printf("valueType :%s\n", valueType)
+
 	// Leaf object
 	if len(keys) == 1 {
 		switch object := parentObject.(type) {
@@ -88,7 +91,6 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 				object[keys[0]] = string(value)
 			case "bool":
 				object[keys[0]] = string(value) == "true"
-				fmt.Printf("BOLEAN CASE")
 			case "float64":
 				object[keys[0]] = binaryToFloat64(value)
 			}
@@ -144,6 +146,25 @@ func propertyListToRaw(parentObject interface{}, keys []string, valueType string
 		// basic types, given that arrays of arrays are not possible in JSON.
 		propertyListToRaw(object, keys[1:], valueType, value)
 	}
+}
+
+func SplitArrayFormat(s string) (int, int, error) {
+	if !strings.HasPrefix(s, "[") && !strings.HasSuffix(s, "]") {
+		return 0, 0, errors.New("not array format")
+	}
+
+	indexCapStr := strings.Trim(s, "[]")
+	valuesStr := strings.Split(indexCapStr, ".")
+	index, err := strconv.Atoi(valuesStr[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to parse index: %v", err)
+	}
+	capacity, err := strconv.Atoi(valuesStr[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("unable to parse index: %v", err)
+	}
+
+	return index, capacity, nil
 }
 
 func propertyNil(keys []string) PropertyEntry {

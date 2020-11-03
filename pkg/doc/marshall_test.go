@@ -35,7 +35,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/employee/active/bool", Value: []byte(strconv.FormatBool(true))},
 			},
 		},
-		"Transforms 1-nested objects": {
+		"Transforms nested objects": {
 			prefix: "prefix2",
 			jsonPayload: []byte(`{
 				"name":"John",
@@ -54,7 +54,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix2/age/float64", Value: float64ToBinary(30)},
 			},
 		},
-		"Transform object arrays": {
+		"Transforms simple object array #1": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{ 
 				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"],
@@ -79,7 +79,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/nested/name/string", Value: []byte("tagger")},
 			},
 		},
-		"Transform object array": {
+		"Transforms simple object array #2": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{ 
 				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"]
@@ -93,7 +93,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/tags/[5.6]/string", Value: []byte("tag6")},
 			},
 		},
-		"Transforms nested object array": {
+		"Transforms complex object #1": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{
 				"id": "0001",
@@ -101,10 +101,8 @@ func TestCreatePropertyList(t *testing.T) {
 				"name": "Cake",
 				"ppu": 0.55,
 				"price": null,
-				"batters":
-				{
-				"batter":
-					[
+				"batters": {
+					"batter": [
 						{ "id": "1001", "type": "Regular" },
 						{ "id": "1002", "type": "Chocolate" },
 						{ "id": "1003", "type": "Blueberry" },
@@ -152,7 +150,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/topping/[6.7]/type/string", Value: []byte("Maple")},
 			},
 		},
-		"Transform Large object array": {
+		"Transforms complex object #2": {
 			prefix: "objectID",
 			jsonPayload: []byte(`[
 			  {
@@ -664,6 +662,102 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "objectID/[6.7]/friends/[2.3]/name/string", Value: []byte("King Burnett")},
 				{KeyURI: "objectID/[6.7]/greeting/string", Value: []byte("Hello, Alana! You have 8 unread messages.")},
 			},
+		},
+		"Transform": {
+			prefix: "objectID",
+			jsonPayload: []byte(`{
+				"type": "FeatureCollection",
+				"features": [
+				{
+				  "type": "Feature",
+				  "properties": {
+					"MAPBLKLOT": "0001001",
+					"BLKLOT": "0001001",
+					"BLOCK_NUM": "0001",
+					"LOT_NUM": "001",
+					"FROM_ST": "0",
+					"TO_ST": "0",
+					"STREET": "UNKNOWN",
+					"ST_TYPE": null,
+					"ODD_EVEN": "E"
+				  },
+				  "geometry": {
+					"type": "Polygon",
+					"coordinates": [
+					  [
+						[
+						  -122.42200352825247,
+						  37.80848009696725,
+						  0
+						],
+						[
+						  -122.42207601332528,
+						  37.808835019815085,
+						  0
+						],
+						[
+						  -122.42110217434863,
+						  37.808803534992904,
+						  0
+						],
+						[
+						  -122.42106256906727,
+						  37.80860105681815,
+						  0
+						],
+						[
+						  -122.42200352825247,
+						  37.80848009696725,
+						  0
+						]
+					  ]
+					]
+				  }
+				},
+				{
+				  "type": "Feature",
+				  "properties": {
+					"MAPBLKLOT": "0004002",
+					"BLKLOT": "0004002",
+					"BLOCK_NUM": "0004",
+					"LOT_NUM": "002",
+					"FROM_ST": "0",
+					"TO_ST": "0",
+					"STREET": "UNKNOWN",
+					"ST_TYPE": null,
+					"ODD_EVEN": "E"
+				  },
+				  "geometry": {
+					"type": "Polygon",
+					"coordinates": [
+					  [
+						[
+						  -122.41570120460688,
+						  37.80832725267146,
+						  0
+						],
+						[
+						  -122.4157607435932,
+						  37.808630700240904,
+						  0
+						],
+						[
+						  -122.4137878913324,
+						  37.80856680131984,
+						  0
+						],
+						[
+						  -122.41570120460688,
+						  37.80832725267146,
+						  0
+						]
+					  ]
+					]
+				  }
+				}
+				]
+				}`),
+			expList: PropertyEntryList{},
 		},
 	}
 

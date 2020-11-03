@@ -26,7 +26,7 @@ func RawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 	case []interface{}:
 		vLen := len(v)
 		for idx, arrElem := range v {
-			keys = append(keys, "["+strconv.Itoa(idx)+"."+strconv.Itoa(vLen)+"]")
+			keys = append(keys, keys[len(keys)-1]+"["+strconv.Itoa(idx)+"."+strconv.Itoa(vLen)+"]")
 			list = append(list, RawToPropertyList(keys, arrElem)...)
 			removeLastElement(&keys)
 		}

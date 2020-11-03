@@ -14,11 +14,11 @@ type PropertyEntry struct {
 	Value  []byte
 }
 
-func (p PropertyEntry) DissectKeyURI() (key []string, vType string) {
+func (p PropertyEntry) DissectKeyURI() (string, []string, string) {
 	keys := strings.Split(p.KeyURI, "/")
 	lastElemIdx := len(keys) - 1
 
-	return keys[:lastElemIdx], keys[lastElemIdx]
+	return keys[0], keys[1:lastElemIdx], keys[lastElemIdx]
 }
 
 // PropertyEntryList defines a list of property key-value pairs.

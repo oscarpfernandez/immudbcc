@@ -13,15 +13,15 @@ func hasArrayFormat(s string) bool {
 	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
 }
 
-func splitArrayFormat(s string) (int, int) {
+func splitArrayFormat(s string) (index int, capacity int) {
 	if !hasArrayFormat(s) {
 		panic("not array format")
 	}
 
 	indexCapStr := strings.Trim(s, "[]")
 	valuesStr := strings.Split(indexCapStr, ".")
-	index, _ := strconv.Atoi(valuesStr[0])
-	capacity, _ := strconv.Atoi(valuesStr[1])
+	index, _ = strconv.Atoi(valuesStr[0])
+	capacity, _ = strconv.Atoi(valuesStr[1])
 
 	return index, capacity
 }

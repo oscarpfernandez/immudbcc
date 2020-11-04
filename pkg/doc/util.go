@@ -2,46 +2,29 @@ package doc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
-func RawToPropertyList(keys []string, value interface{}) PropertyEntryList {
-	list := PropertyEntryList{}
+func hasArrayFormat(s string) bool {
+	// Checks for Arrays definitions of the format "[%d.%d]"
+	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
+}
 
-	// https://www.w3schools.com/js/js_json_datatypes.asp
-	switch v := value.(type) {
-	case nil:
-		list = append(list, propertyNil(keys))
-
-	case string:
-		list = append(list, propertyString(keys, v))
-
-	case bool:
-		list = append(list, propertyBool(keys, v))
-
-	case float64:
-		list = append(list, propertyFloat64(keys, v))
-
-	case map[string]interface{}:
-		for key, value := range v {
-			keys = append(keys, key)
-			list = append(list, RawToPropertyList(keys, value)...)
-			removeLastElement(&keys)
-		}
-
-	case []interface{}:
-		vLen := len(v)
-		for idx, arrElem := range v {
-			keys = append(keys, "["+strconv.Itoa(idx)+"."+strconv.Itoa(vLen)+"]")
-			subList := RawToPropertyList(keys, arrElem)
-			list = append(list, subList...)
-			removeLastElement(&keys)
-		}
+func splitArrayFormat(s string) (index int, capacity int) {
+	if !hasArrayFormat(s) {
+		panic("not array format")
 	}
 
-	return list
+	indexCapStr := strings.Trim(s, "[]")
+	valuesStr := strings.Split(indexCapStr, ".")
+	index, _ = strconv.Atoi(valuesStr[0])
+	capacity, _ = strconv.Atoi(valuesStr[1])
+
+	return index, capacity
 }
 
 func propertyNil(keys []string) PropertyEntry {
@@ -72,13 +55,6 @@ func propertyFloat64(keys []string, value float64) PropertyEntry {
 	}
 }
 
-func removeLastElement(s *[]string) {
-	if s == nil || len(*s) == 0 {
-		return
-	}
-	*s = (*s)[:len(*s)-1]
-}
-
 func float64ToBinary(v float64) []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], math.Float64bits(v))
@@ -89,4 +65,18 @@ func binaryToFloat64(bytes []byte) float64 {
 	bits := binary.BigEndian.Uint64(bytes)
 	float := math.Float64frombits(bits)
 	return float
+}
+
+func removeLastElement(s *[]string) {
+	if s == nil || len(*s) == 0 {
+		return
+	}
+	*s = (*s)[:len(*s)-1]
+}
+
+func printPropertyEntryList(pel PropertyEntryList) {
+	for _, elem := range pel {
+		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
+		fmt.Println()
+	}
 }

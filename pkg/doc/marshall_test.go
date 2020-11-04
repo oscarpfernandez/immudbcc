@@ -3,7 +3,6 @@ package doc
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -35,7 +34,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/employee/active/bool", Value: []byte(strconv.FormatBool(true))},
 			},
 		},
-		"Transforms 1-nested objects": {
+		"Transforms nested objects": {
 			prefix: "prefix2",
 			jsonPayload: []byte(`{
 				"name":"John",
@@ -54,7 +53,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix2/age/float64", Value: float64ToBinary(30)},
 			},
 		},
-		"Transform object arrays": {
+		"Transforms simple object array #1": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{ 
 				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"],
@@ -79,7 +78,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/nested/name/string", Value: []byte("tagger")},
 			},
 		},
-		"Transform object array": {
+		"Transforms simple object array #2": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{ 
 				"tags": ["tag1","tag2","tag3","tag4","tag5","tag6"]
@@ -93,7 +92,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/tags/[5.6]/string", Value: []byte("tag6")},
 			},
 		},
-		"Transforms nested object array": {
+		"Transforms complex object #1": {
 			prefix: "prefix1",
 			jsonPayload: []byte(`{
 				"id": "0001",
@@ -101,10 +100,8 @@ func TestCreatePropertyList(t *testing.T) {
 				"name": "Cake",
 				"ppu": 0.55,
 				"price": null,
-				"batters":
-				{
-				"batter":
-					[
+				"batters": {
+					"batter": [
 						{ "id": "1001", "type": "Regular" },
 						{ "id": "1002", "type": "Chocolate" },
 						{ "id": "1003", "type": "Blueberry" },
@@ -152,7 +149,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "prefix1/topping/[6.7]/type/string", Value: []byte("Maple")},
 			},
 		},
-		"Transform Large object array": {
+		"Transforms complex object #2": {
 			prefix: "objectID",
 			jsonPayload: []byte(`[
 			  {
@@ -665,6 +662,174 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "objectID/[6.7]/greeting/string", Value: []byte("Hello, Alana! You have 8 unread messages.")},
 			},
 		},
+		"Transform object with chained arrays": {
+			prefix: "objectID",
+			jsonPayload: []byte(`{
+				"type": "FeatureCollection",
+				"features": [
+				{
+				  "type": "Feature",
+				  "properties": {
+					"MAPBLKLOT": "0001001",
+					"BLKLOT": "0001001",
+					"BLOCK_NUM": "0001",
+					"LOT_NUM": "001",
+					"FROM_ST": "0",
+					"TO_ST": "0",
+					"STREET": "UNKNOWN",
+					"ST_TYPE": null,
+					"ODD_EVEN": "E"
+				  },
+				  "geometry": {
+					"type": "Polygon",
+					"coordinates": [
+					  [
+						[
+						  -122.42200352825247,
+						  37.80848009696725,
+						  0
+						],
+						[
+						  -122.42207601332528,
+						  37.808835019815085,
+						  0
+						],
+						[
+						  -122.42110217434863,
+						  37.808803534992904,
+						  0
+						],
+						[
+						  -122.42106256906727,
+						  37.80860105681815,
+						  0
+						],
+						[
+						  -122.42200352825247,
+						  37.80848009696725,
+						  0
+						]
+					  ]
+					]
+				  }
+				},
+				{
+				  "type": "Feature",
+				  "properties": {
+					"MAPBLKLOT": "0004002",
+					"BLKLOT": "0004002",
+					"BLOCK_NUM": "0004",
+					"LOT_NUM": "002",
+					"FROM_ST": "0",
+					"TO_ST": "0",
+					"STREET": "UNKNOWN",
+					"ST_TYPE": null,
+					"ODD_EVEN": "E"
+				  },
+				  "geometry": {
+					"type": "Polygon",
+					"coordinates": [
+					  [
+						[
+						  -122.41570120460688,
+						  37.80832725267146,
+						  0
+						],
+						[
+						  -122.4157607435932,
+						  37.808630700240904,
+						  0
+						],
+						[
+						  -122.4137878913324,
+						  37.80856680131984,
+						  0
+						],
+						[
+						  -122.41570120460688,
+						  37.80832725267146,
+						  0
+						]
+					  ]
+					]
+				  }
+				}
+				]
+				}`),
+			expList: PropertyEntryList{
+				{KeyURI: "objectID/type/string", Value: []byte("FeatureCollection")},
+				{KeyURI: "objectID/features/[0.2]/type/string", Value: []byte("Feature")},
+				{KeyURI: "objectID/features/[0.2]/properties/MAPBLKLOT/string", Value: []byte("0001001")},
+				{KeyURI: "objectID/features/[0.2]/properties/BLKLOT/string", Value: []byte("0001001")},
+				{KeyURI: "objectID/features/[0.2]/properties/FROM_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[0.2]/properties/STREET/string", Value: []byte("UNKNOWN")},
+				{KeyURI: "objectID/features/[0.2]/properties/ODD_EVEN/string", Value: []byte("E")},
+				{KeyURI: "objectID/features/[0.2]/properties/BLOCK_NUM/string", Value: []byte("0001")},
+				{KeyURI: "objectID/features/[0.2]/properties/LOT_NUM/string", Value: []byte("001")},
+				{KeyURI: "objectID/features/[0.2]/properties/TO_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[0.2]/properties/ST_TYPE/nil", Value: nil},
+				{KeyURI: "objectID/features/[0.2]/geometry/type/string", Value: []byte("Polygon")},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[0.3]/float64", Value: float64ToBinary(-122.42200352825247)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[1.3]/float64", Value: float64ToBinary(37.80848009696725)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[0.3]/float64", Value: float64ToBinary(-122.42207601332528)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[1.3]/float64", Value: float64ToBinary(37.808835019815085)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[0.3]/float64", Value: float64ToBinary(-122.42110217434863)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[1.3]/float64", Value: float64ToBinary(37.808803534992904)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[0.3]/float64", Value: float64ToBinary(-122.42106256906727)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[1.3]/float64", Value: float64ToBinary(37.80860105681815)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[0.3]/float64", Value: float64ToBinary(-122.42200352825247)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[1.3]/float64", Value: float64ToBinary(37.80848009696725)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/type/string", Value: []byte("Feature")},
+				{KeyURI: "objectID/features/[1.2]/properties/STREET/string", Value: []byte("UNKNOWN")},
+				{KeyURI: "objectID/features/[1.2]/properties/ODD_EVEN/string", Value: []byte("E")},
+				{KeyURI: "objectID/features/[1.2]/properties/MAPBLKLOT/string", Value: []byte("0004002")},
+				{KeyURI: "objectID/features/[1.2]/properties/BLOCK_NUM/string", Value: []byte("0004")},
+				{KeyURI: "objectID/features/[1.2]/properties/LOT_NUM/string", Value: []byte("002")},
+				{KeyURI: "objectID/features/[1.2]/properties/FROM_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[1.2]/properties/BLKLOT/string", Value: []byte("0004002")},
+				{KeyURI: "objectID/features/[1.2]/properties/TO_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[1.2]/properties/ST_TYPE/nil", Value: nil},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[0.3]/float64", Value: float64ToBinary(-122.41570120460688)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[1.3]/float64", Value: float64ToBinary(37.80832725267146)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[0.3]/float64", Value: float64ToBinary(-122.4157607435932)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[1.3]/float64", Value: float64ToBinary(37.808630700240904)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[0.3]/float64", Value: float64ToBinary(-122.4137878913324)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[1.3]/float64", Value: float64ToBinary(37.80856680131984)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[0.3]/float64", Value: float64ToBinary(-122.41570120460688)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[1.3]/float64", Value: float64ToBinary(37.80832725267146)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/type/string", Value: []byte("Polygon")},
+			},
+		},
+		"Transform array of objects": {
+			prefix: "objectID",
+			jsonPayload: []byte(`[
+				{ "name":"Ford", "models":[ "Fiesta", "Focus", "Mustang" ] },
+				{ "name":"BMW", "models":[ "320", "X3", "X5" ] },
+				{ "name":"Fiat", "models":[ "500", "Panda" ] }
+			]`),
+			expList: PropertyEntryList{
+				{KeyURI: "objectID/[0.3]/name/string", Value: []byte("Ford")},
+				{KeyURI: "objectID/[0.3]/models/[0.3]/string", Value: []byte("Fiesta")},
+				{KeyURI: "objectID/[0.3]/models/[1.3]/string", Value: []byte("Focus")},
+				{KeyURI: "objectID/[0.3]/models/[2.3]/string", Value: []byte("Mustang")},
+				{KeyURI: "objectID/[1.3]/name/string", Value: []byte("BMW")},
+				{KeyURI: "objectID/[1.3]/models/[0.3]/string", Value: []byte("320")},
+				{KeyURI: "objectID/[1.3]/models/[1.3]/string", Value: []byte("X3")},
+				{KeyURI: "objectID/[1.3]/models/[2.3]/string", Value: []byte("X5")},
+				{KeyURI: "objectID/[2.3]/name/string", Value: []byte("Fiat")},
+				{KeyURI: "objectID/[2.3]/models/[0.2]/string", Value: []byte("500")},
+				{KeyURI: "objectID/[2.3]/models/[1.2]/string", Value: []byte("Panda")},
+			},
+		},
 	}
 
 	for name, test := range tests {
@@ -680,12 +845,5 @@ func TestCreatePropertyList(t *testing.T) {
 
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
 		})
-	}
-}
-
-func printPropertyEntryList(pel PropertyEntryList) {
-	for _, elem := range pel {
-		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
-		fmt.Println()
 	}
 }

@@ -809,6 +809,27 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "objectID/features/[1.2]/geometry/type/string", Value: []byte("Polygon")},
 			},
 		},
+		"Transform array of objects": {
+			prefix: "objectID",
+			jsonPayload: []byte(`[
+				{ "name":"Ford", "models":[ "Fiesta", "Focus", "Mustang" ] },
+				{ "name":"BMW", "models":[ "320", "X3", "X5" ] },
+				{ "name":"Fiat", "models":[ "500", "Panda" ] }
+			]`),
+			expList: PropertyEntryList{
+				{KeyURI: "objectID/[0.3]/name/string", Value: []byte("Ford")},
+				{KeyURI: "objectID/[0.3]/models/[0.3]/string", Value: []byte("Fiesta")},
+				{KeyURI: "objectID/[0.3]/models/[1.3]/string", Value: []byte("Focus")},
+				{KeyURI: "objectID/[0.3]/models/[2.3]/string", Value: []byte("Mustang")},
+				{KeyURI: "objectID/[1.3]/name/string", Value: []byte("BMW")},
+				{KeyURI: "objectID/[1.3]/models/[0.3]/string", Value: []byte("320")},
+				{KeyURI: "objectID/[1.3]/models/[1.3]/string", Value: []byte("X3")},
+				{KeyURI: "objectID/[1.3]/models/[2.3]/string", Value: []byte("X5")},
+				{KeyURI: "objectID/[2.3]/name/string", Value: []byte("Fiat")},
+				{KeyURI: "objectID/[2.3]/models/[0.2]/string", Value: []byte("500")},
+				{KeyURI: "objectID/[2.3]/models/[1.2]/string", Value: []byte("Panda")},
+			},
+		},
 	}
 
 	for name, test := range tests {
@@ -820,7 +841,7 @@ func TestCreatePropertyList(t *testing.T) {
 
 			gotList := RawToPropertyList([]string{test.prefix}, object)
 
-			//printPropertyEntryList(gotList)
+			printPropertyEntryList(gotList)
 
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
 		})

@@ -3,7 +3,6 @@ package doc
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -757,7 +756,58 @@ func TestCreatePropertyList(t *testing.T) {
 				}
 				]
 				}`),
-			expList: PropertyEntryList{},
+			expList: PropertyEntryList{
+				{KeyURI: "objectID/type/string", Value: []byte("FeatureCollection")},
+				{KeyURI: "objectID/features/[0.2]/type/string", Value: []byte("Feature")},
+				{KeyURI: "objectID/features/[0.2]/properties/MAPBLKLOT/string", Value: []byte("0001001")},
+				{KeyURI: "objectID/features/[0.2]/properties/BLKLOT/string", Value: []byte("0001001")},
+				{KeyURI: "objectID/features/[0.2]/properties/FROM_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[0.2]/properties/STREET/string", Value: []byte("UNKNOWN")},
+				{KeyURI: "objectID/features/[0.2]/properties/ODD_EVEN/string", Value: []byte("E")},
+				{KeyURI: "objectID/features/[0.2]/properties/BLOCK_NUM/string", Value: []byte("0001")},
+				{KeyURI: "objectID/features/[0.2]/properties/LOT_NUM/string", Value: []byte("001")},
+				{KeyURI: "objectID/features/[0.2]/properties/TO_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[0.2]/properties/ST_TYPE/nil", Value: nil},
+				{KeyURI: "objectID/features/[0.2]/geometry/type/string", Value: []byte("Polygon")},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[0.3]/float64", Value: float64ToBinary(-122.42200352825247)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[1.3]/float64", Value: float64ToBinary(37.80848009696725)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[0.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[0.3]/float64", Value: float64ToBinary(-122.42207601332528)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[1.3]/float64", Value: float64ToBinary(37.808835019815085)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[1.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[0.3]/float64", Value: float64ToBinary(-122.42110217434863)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[1.3]/float64", Value: float64ToBinary(37.808803534992904)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[2.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[0.3]/float64", Value: float64ToBinary(-122.42106256906727)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[1.3]/float64", Value: float64ToBinary(37.80860105681815)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[3.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[0.3]/float64", Value: float64ToBinary(-122.42200352825247)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[1.3]/float64", Value: float64ToBinary(37.80848009696725)},
+				{KeyURI: "objectID/features/[0.2]/geometry/coordinates/[0.1]/[4.5]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/type/string", Value: []byte("Feature")},
+				{KeyURI: "objectID/features/[1.2]/properties/STREET/string", Value: []byte("UNKNOWN")},
+				{KeyURI: "objectID/features/[1.2]/properties/ODD_EVEN/string", Value: []byte("E")},
+				{KeyURI: "objectID/features/[1.2]/properties/MAPBLKLOT/string", Value: []byte("0004002")},
+				{KeyURI: "objectID/features/[1.2]/properties/BLOCK_NUM/string", Value: []byte("0004")},
+				{KeyURI: "objectID/features/[1.2]/properties/LOT_NUM/string", Value: []byte("002")},
+				{KeyURI: "objectID/features/[1.2]/properties/FROM_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[1.2]/properties/BLKLOT/string", Value: []byte("0004002")},
+				{KeyURI: "objectID/features/[1.2]/properties/TO_ST/string", Value: []byte("0")},
+				{KeyURI: "objectID/features/[1.2]/properties/ST_TYPE/nil", Value: nil},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[0.3]/float64", Value: float64ToBinary(-122.41570120460688)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[1.3]/float64", Value: float64ToBinary(37.80832725267146)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[0.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[0.3]/float64", Value: float64ToBinary(-122.4157607435932)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[1.3]/float64", Value: float64ToBinary(37.808630700240904)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[1.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[0.3]/float64", Value: float64ToBinary(-122.4137878913324)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[1.3]/float64", Value: float64ToBinary(37.80856680131984)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[2.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[0.3]/float64", Value: float64ToBinary(-122.41570120460688)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[1.3]/float64", Value: float64ToBinary(37.80832725267146)},
+				{KeyURI: "objectID/features/[1.2]/geometry/coordinates/[0.1]/[3.4]/[2.3]/float64", Value: float64ToBinary(0)},
+				{KeyURI: "objectID/features/[1.2]/geometry/type/string", Value: []byte("Polygon")},
+			},
 		},
 	}
 
@@ -770,16 +820,9 @@ func TestCreatePropertyList(t *testing.T) {
 
 			gotList := RawToPropertyList([]string{test.prefix}, object)
 
-			printPropertyEntryList(gotList)
+			//printPropertyEntryList(gotList)
 
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
 		})
-	}
-}
-
-func printPropertyEntryList(pel PropertyEntryList) {
-	for _, elem := range pel {
-		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
-		fmt.Println()
 	}
 }

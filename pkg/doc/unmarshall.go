@@ -7,6 +7,8 @@ import (
 func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	sort.Sort(properties)
 
+	printPropertyEntryList(properties)
+
 	var rawObject interface{}
 
 	for idx, property := range properties {
@@ -32,9 +34,6 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 }
 
 func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
-	//fmt.Printf("keys: %s\n", keys)
-	//fmt.Printf("valueType :%s\n", valueType)
-
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
 		switch object := parentObject.(type) {
@@ -49,19 +48,6 @@ func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string,
 				object[keys[curKeyIndex]] = string(value) == "true"
 			case "float64":
 				object[keys[curKeyIndex]] = binaryToFloat64(value)
-			}
-
-		// Leaf object is a map.
-		case []interface{}:
-			switch valueType {
-			case "nil":
-				object = append(object, nil)
-			case "string":
-				object = append(object, string(value))
-			case "bool":
-				object = append(object, string(value) == "true")
-			case "float64":
-				object = append(object, binaryToFloat64(value))
 			}
 		}
 

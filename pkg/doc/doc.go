@@ -32,7 +32,7 @@ func (p PropertyEntryList) Swap(i, j int) {
 }
 
 func (p PropertyEntryList) Less(i, j int) bool {
-	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
+	return strings.Compare(p[i].KeyURI, p[j].KeyURI) >= 0
 }
 
 type PropertyHash struct {

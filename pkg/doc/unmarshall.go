@@ -7,8 +7,6 @@ import (
 func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	sort.Sort(properties)
 
-	printPropertyEntryList(properties)
-
 	var rawObject interface{}
 
 	for idx, property := range properties {
@@ -97,13 +95,13 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 	switch object := parentArray.(type) {
 	// Intermediate node object is a map.
 	case []interface{}:
-		if hasArrayFormat(keys[curKeyIndex]) {
-			index, capacity := splitArrayFormat(keys[curKeyIndex])
+		if hasArrayFormat(keys[curKeyIndex+1]) {
+			index, capacity := splitArrayFormat(keys[curKeyIndex+1])
 			// Arrays case.
 			if object[curArrayIndex] == nil {
 				object[curArrayIndex] = make([]interface{}, capacity)
 			}
-			propertyListToRawArrays(index, object[curKeyIndex], curKeyIndex+1, keys, valueType, value)
+			propertyListToRawArrays(index, object[curArrayIndex], curKeyIndex+1, keys, valueType, value)
 		} else {
 			if object[curArrayIndex] == nil {
 				object[curArrayIndex] = map[string]interface{}{}

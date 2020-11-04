@@ -662,7 +662,7 @@ func TestCreatePropertyList(t *testing.T) {
 				{KeyURI: "objectID/[6.7]/greeting/string", Value: []byte("Hello, Alana! You have 8 unread messages.")},
 			},
 		},
-		"Transform": {
+		"Transform object with chained arrays": {
 			prefix: "objectID",
 			jsonPayload: []byte(`{
 				"type": "FeatureCollection",

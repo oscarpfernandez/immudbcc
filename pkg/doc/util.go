@@ -74,7 +74,7 @@ func removeLastElement(s *[]string) {
 	*s = (*s)[:len(*s)-1]
 }
 
-func printPropertyEntryList(pel PropertyEntryList) {
+func PrintPropertyEntryList(pel PropertyEntryList) {
 	for _, elem := range pel {
 		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
 		fmt.Println()

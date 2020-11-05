@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"sync"
 
 	immuclient "github.com/codenotary/immudb/pkg/client"
@@ -32,6 +34,7 @@ func NewWriteWorkerPool(numWorkers int, client immuclient.ImmuClient) *WriteWork
 		errChan:      make(chan error, 100),
 		shutdownChan: make(chan bool),
 		wg:           &sync.WaitGroup{},
+		mu:           &sync.Mutex{},
 	}
 }
 
@@ -43,8 +46,9 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 		return errors.New("workers are already started")
 	}
 
+	w.wg.Add(w.numWorkers)
 	for i := 0; i < w.numWorkers; i++ {
-		w.wg.Add(1)
+		log.Printf("Starting worker %d", i)
 		go w.worker(ctx)
 	}
 	w.isStarted = true
@@ -54,7 +58,8 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 
 func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
 	go func() {
-		for _, propEntry := range properties {
+		for idx, propEntry := range properties {
+			fmt.Printf("Sending job %d\n", idx)
 			w.jobChan <- &propEntry
 		}
 	}()
@@ -70,10 +75,12 @@ func (w *WriteWorkerPool) Stop() {
 		return
 	}
 
+	fmt.Println("Waiting for go routines to finish")
+
 	w.closeOnce.Do(func() {
-		close(w.shutdownChan) // Trigger workers shutdown.
-		w.wg.Wait()           // Wait until all workers are stopped.
-		close(w.jobChan)      // Close the underlying channels.
+		close(w.shutdownChan)
+		w.wg.Wait()
+		close(w.jobChan) // Close the underlying channels.
 		close(w.resultChan)
 		close(w.errChan)
 	})
@@ -84,19 +91,22 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 	for {
 		select {
 		case job := <-w.jobChan:
-			func() {
-				key, value := []byte(job.KeyURI), job.Value
+			if job != nil {
+				func() {
+					key, value := []byte(job.KeyURI), job.Value
 
-				vi, err := w.client.SafeSet(ctx, key, value)
-				if err != nil {
-					w.errChan <- err
-					return
-				}
-
-				w.resultChan <- doc.PropertyHashDigest(vi.Index, key, value)
-			}()
+					vi, err := w.client.SafeSet(ctx, key, value)
+					if err != nil {
+						fmt.Printf("Error :%v", err)
+						w.errChan <- err
+					}
+					fmt.Printf("Stored: %v\n", vi.Index)
+					w.resultChan <- doc.PropertyHashDigest(vi.Index, key, value)
+				}()
+			}
 
 		case <-w.shutdownChan:
+			fmt.Println("Shutdown called")
 			return
 
 		case <-ctx.Done():

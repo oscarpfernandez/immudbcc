@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
 	"github.com/oscarpfernandez/immudbcc/pkg/worker"
@@ -49,11 +50,13 @@ type Manager struct {
 }
 
 // New creates a new API manager object.
-func New(c Config) (*Manager, error) {
+func New(c *Config) (*Manager, error) {
 	client, err := immuclient.NewImmuClient(c.ClientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ImmuDB client: %v", err)
 	}
+
+	time.Sleep(50 * time.Millisecond)
 
 	return &Manager{
 		numberWorkers: c.NumberWorkers,
@@ -64,44 +67,53 @@ func New(c Config) (*Manager, error) {
 // StoreDocument saves a JSON document in the database, marshalling its structure
 // into key-value properties, representing the transversal property paths of the
 // original object.
-func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) error {
+func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) ([]*doc.PropertyHash, error) {
 	entryList, err := doc.GeneratePropertyList(docID, r)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	doc.PrintPropertyEntryList(entryList)
 
 	workers := worker.NewWriteWorkerPool(m.numberWorkers, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
-		return err
+		return nil, err
 	}
+	defer workers.Stop()
 
 	// Process the entry list submitting them to the available workers.
 	resultChan, done, errChan := workers.Write(entryList)
 
+	counter := 0
 	var resultHash []*doc.PropertyHash
 	var errList []string
-	func() {
-		for {
-			select {
-			case hash := <-resultChan:
-				if hash != nil {
-					resultHash = append(resultHash, hash)
+	for {
+		select {
+		case hash := <-resultChan:
+			if hash != nil {
+				resultHash = append(resultHash, hash)
+				counter++
+				fmt.Printf("Received result hash: %d\n", counter)
+				if counter == len(entryList) {
+					workers.Stop()
 				}
-			case err := <-errChan:
-				if err != nil {
-					errList = append(errList, err.Error())
-				}
-			case <-done:
-				return
-			case <-ctx.Done():
-				return
 			}
+		case err := <-errChan:
+			if err != nil {
+				errList = append(errList, err.Error())
+			}
+		case <-done:
+			goto finish
+		case <-ctx.Done():
+			break
 		}
-	}()
-
-	if len(errList) > 0 {
-		return fmt.Errorf("failed to store document ID '%s': %v", docID, strings.Join(errList, "; "))
 	}
 
-	return nil
+finish:
+
+	if len(errList) > 0 {
+		return nil, fmt.Errorf("failed to store document ID '%s': %v", docID, strings.Join(errList, "; "))
+	}
+
+	return resultHash, nil
 }

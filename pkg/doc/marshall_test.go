@@ -841,7 +841,7 @@ func TestCreatePropertyList(t *testing.T) {
 
 			gotList := RawToPropertyList([]string{test.prefix}, object)
 
-			printPropertyEntryList(gotList)
+			PrintPropertyEntryList(gotList)
 
 			assert.ElementsMatch(t, gotList, test.expList, "list should match")
 		})

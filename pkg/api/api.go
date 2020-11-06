@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/oscarpfernandez/immudbcc/pkg/crypt"
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
 	"github.com/oscarpfernandez/immudbcc/pkg/worker"
 
@@ -139,7 +140,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	indexes := resultHash.Indexes()
 	objectHash := resultHash.Hash()
-	encObjectHash, err := objectHash.Encrypt(m.conf.EncryptionToken)
+	encObjectHash, err := crypt.Encrypt(objectHash, m.conf.EncryptionToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to encrypt global hash :%v", err)
 	}

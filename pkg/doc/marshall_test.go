@@ -2,7 +2,6 @@ package doc
 
 import (
 	"bytes"
-	"encoding/json"
 	"strconv"
 	"testing"
 
@@ -832,14 +831,10 @@ var testCases = map[string]struct {
 func TestCreatePropertyListFromRaw(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
-			var object interface{}
-			if err := json.NewDecoder(bytes.NewReader(test.jsonPayload)).Decode(&object); err != nil {
-				t.Fatalf("unexpected error: %v", err)
+			gotList, err := GeneratePropertyList(test.prefix, bytes.NewReader(test.jsonPayload))
+			if err != nil {
+				t.Fatalf("unexpected error :%v", err)
 			}
-
-			gotList := rawToPropertyList([]string{test.prefix}, object)
-
-			PrintPropertyEntryList(gotList)
 
 			assert.ElementsMatch(t, gotList, test.propertyList, "list should match")
 		})

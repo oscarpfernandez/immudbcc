@@ -8,7 +8,7 @@ import (
 )
 
 func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
-	var docMap map[string]interface{}
+	var docMap interface{}
 	if err := json.NewDecoder(r).Decode(&docMap); err != nil {
 		return nil, fmt.Errorf("unable to unmarshall payload: %v", err)
 	}

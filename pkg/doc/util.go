@@ -1,24 +1,13 @@
 package doc
 
 import (
-	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-func GenerateEncryptionToken() (string, error) {
-	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(bytes), nil
-}
 
 func hasArrayFormat(s string) bool {
 	// Checks for Arrays definitions of the format "[%d.%d]"

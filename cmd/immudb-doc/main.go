@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/api"
-	"github.com/oscarpfernandez/immudbcc/pkg/doc"
+	"github.com/oscarpfernandez/immudbcc/pkg/crypt"
 	"github.com/oscarpfernandez/immudbcc/pkg/server"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
@@ -71,7 +71,7 @@ func main() {
 		log.Print("Stopped ImmuDB Server")
 	}()
 
-	token, err := doc.GenerateEncryptionToken()
+	token, err := crypt.GenerateEncryptionToken()
 	if err != nil {
 		log.Fatalf("Failed to create encryption token: %v", err)
 	}

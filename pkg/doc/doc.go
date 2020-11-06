@@ -1,12 +1,7 @@
 package doc
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
-	"io"
 	"strings"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
@@ -38,22 +33,14 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
-func (p PropertyHashList) Hash() Hash {
-	globalSum := sha256.New()
-	for _, hash := range p {
-		globalSum.Write(hash.Hash)
-	}
+type Hash []byte
+type EncHash []byte
 
-	return globalSum.Sum(nil)
-}
-
-func (p PropertyHashList) Indexes() []uint64 {
-	indexes := make([]uint64, len(p))
-	for idx, pp := range p {
-		indexes[idx] = pp.Index
-	}
-
-	return indexes
+type ObjectManifest struct {
+	ObjectID        string   `json:"object_id"`
+	PropertyIndexes []uint64 `json:"property_indexes"`
+	ObjectHash      Hash     `json:"object_hash"`
+	ObjectEncHash   EncHash  `json:"object_enc_hash"`
 }
 
 type PropertyHash struct {
@@ -82,55 +69,20 @@ func (p PropertyHashList) Less(i, j int) bool {
 	return p[i].Index <= p[j].Index
 }
 
-type ObjectManifest struct {
-	ObjectID        string   `json:"object_id"`
-	PropertyIndexes []uint64 `json:"property_indexes"`
-	ObjectHash      Hash     `json:"object_hash"`
-	ObjectEncHash   EncHash  `json:"object_enc_hash"`
+func (p PropertyHashList) Hash() Hash {
+	globalSum := sha256.New()
+	for _, hash := range p {
+		globalSum.Write(hash.Hash)
+	}
+
+	return globalSum.Sum(nil)
 }
 
-type Hash []byte
-
-func (h Hash) Encrypt(token string) (EncHash, error) {
-	key, err := hex.DecodeString(token)
-	if err != nil {
-		return nil, err
+func (p PropertyHashList) Indexes() []uint64 {
+	indexes := make([]uint64, len(p))
+	for idx, pp := range p {
+		indexes[idx] = pp.Index
 	}
 
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
-	return aesGCM.Seal(nonce, nonce, h, nil), nil
-}
-
-type EncHash []byte
-
-func (e EncHash) Decrypt(token string) (Hash, error) {
-	block, err := aes.NewCipher([]byte(token))
-	if err != nil {
-		return nil, err
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonceSize := aesGCM.NonceSize()
-
-	nonce, ciphertext := e[:nonceSize], e[nonceSize:]
-
-	return aesGCM.Open(nil, nonce, ciphertext, nil)
+	return indexes
 }

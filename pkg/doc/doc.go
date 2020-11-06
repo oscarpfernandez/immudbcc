@@ -1,8 +1,11 @@
 package doc
 
 import (
-	"encoding/json"
-	"fmt"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"strings"
 
@@ -35,28 +38,99 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
+func (p PropertyHashList) Hash() Hash {
+	globalSum := sha256.New()
+	for _, hash := range p {
+		globalSum.Write(hash.Hash)
+	}
+
+	return globalSum.Sum(nil)
+}
+
+func (p PropertyHashList) Indexes() []uint64 {
+	indexes := make([]uint64, len(p))
+	for idx, pp := range p {
+		indexes[idx] = pp.Index
+	}
+
+	return indexes
+}
+
 type PropertyHash struct {
 	Index uint64 // Index of property DB entry.
 	Hash  []byte // Hash of property DB entry.
 }
 
-func PropertyHashDigest(index uint64, key, value []byte) *PropertyHash {
+func CreatePropertyHash(index uint64, key, value []byte) *PropertyHash {
 	digest := immuapi.Digest(index, key, value)
 
 	return &PropertyHash{Index: index, Hash: digest[:]}
 }
 
 // Properties defined a list of property index hashes pairs.
-type PropertyHashList []PropertyHash
+type PropertyHashList []*PropertyHash
 
-// GlobalHash defines the global document hash.
-type GlobalHash []byte
+func (p PropertyHashList) Len() int {
+	return len(p)
+}
 
-func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
-	var docMap map[string]interface{}
-	if err := json.NewDecoder(r).Decode(&docMap); err != nil {
-		return nil, fmt.Errorf("unable to unmarshall payload: %v", err)
+func (p PropertyHashList) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (p PropertyHashList) Less(i, j int) bool {
+	return p[i].Index <= p[j].Index
+}
+
+type ObjectManifest struct {
+	ObjectID        string   `json:"object_id"`
+	PropertyIndexes []uint64 `json:"property_indexes"`
+	ObjectHash      Hash     `json:"object_hash"`
+	ObjectEncHash   EncHash  `json:"object_enc_hash"`
+}
+
+type Hash []byte
+
+func (h Hash) Encrypt(token string) (EncHash, error) {
+	key, err := hex.DecodeString(token)
+	if err != nil {
+		return nil, err
 	}
 
-	return RawToPropertyList([]string{docID}, docMap), nil
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	return aesGCM.Seal(nonce, nonce, h, nil), nil
+}
+
+type EncHash []byte
+
+func (e EncHash) Decrypt(token string) (Hash, error) {
+	block, err := aes.NewCipher([]byte(token))
+	if err != nil {
+		return nil, err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := aesGCM.NonceSize()
+
+	nonce, ciphertext := e[:nonceSize], e[nonceSize:]
+
+	return aesGCM.Open(nil, nonce, ciphertext, nil)
 }

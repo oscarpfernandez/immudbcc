@@ -29,9 +29,9 @@ func NewWriteWorkerPool(numWorkers int, client immuclient.ImmuClient) *WriteWork
 	return &WriteWorkerPool{
 		numWorkers:   numWorkers,
 		client:       client,
-		jobChan:      make(chan *doc.PropertyEntry, 100),
-		resultChan:   make(chan *doc.PropertyHash, 100),
-		errChan:      make(chan error, 100),
+		jobChan:      make(chan *doc.PropertyEntry, 10),
+		resultChan:   make(chan *doc.PropertyHash, 10),
+		errChan:      make(chan error, 10),
 		shutdownChan: make(chan bool),
 		wg:           &sync.WaitGroup{},
 		mu:           &sync.Mutex{},
@@ -101,7 +101,7 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 						w.errChan <- err
 					}
 					fmt.Printf("Stored: %v\n", vi.Index)
-					w.resultChan <- doc.PropertyHashDigest(vi.Index, key, value)
+					w.resultChan <- doc.CreatePropertyHash(vi.Index, key, value)
 				}()
 			}
 

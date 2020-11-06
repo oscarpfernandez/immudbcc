@@ -839,7 +839,7 @@ func TestCreatePropertyList(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			gotList := RawToPropertyList([]string{test.prefix}, object)
+			gotList := rawToPropertyList([]string{test.prefix}, object)
 
 			PrintPropertyEntryList(gotList)
 

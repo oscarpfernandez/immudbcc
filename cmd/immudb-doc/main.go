@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -10,17 +11,17 @@ import (
 	"time"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/api"
+	"github.com/oscarpfernandez/immudbcc/pkg/doc"
+	"github.com/oscarpfernandez/immudbcc/pkg/server"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
-	"github.com/oscarpfernandez/immudbcc/pkg/server"
 )
 
 func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
-
-	jsonPath := fsWrite.String("json", "", "JSON path of the file to store")
+	jsonPath := fsWrite.String("input-json", "", "JSON path of the file to store")
 
 	if len(os.Args) <= 1 {
 		fmt.Printf(os.Args[0] + " <read | write>  [flags]\n")
@@ -70,7 +71,14 @@ func main() {
 		log.Print("Stopped ImmuDB Server")
 	}()
 
-	apiManager, err := api.New(api.DefaultConfig())
+	token, err := doc.GenerateEncryptionToken()
+	if err != nil {
+		log.Fatalf("Failed to create encryption token: %v", err)
+	}
+	log.Printf("Encryption token: %s", token)
+
+	conf := api.DefaultConfig().WithEncryptionToken(token)
+	apiManager, err := api.New(conf)
 	if err != nil {
 		log.Fatalf("Failed to start API manager: %v", err)
 	}
@@ -83,7 +91,8 @@ func main() {
 	execTime := time.Now().Sub(now).String()
 	log.Printf("Write document execution time: %s", execTime)
 
-	log.Printf("Result hash: %+v", result)
+	log.Printf("Result hash: Index(%d), Hash(%s), EncHash(%s)", result.Index, hex.EncodeToString(result.Hash), hex.EncodeToString(result.HashEnc))
+
 }
 
 func openFile(path string) (io.ReadCloser, error) {

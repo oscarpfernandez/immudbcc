@@ -109,7 +109,6 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 				if hash != nil {
 					resultHash = append(resultHash, hash)
 					counter++
-					//fmt.Printf("Received result hash: %d\n", counter)
 					if counter == len(entryList) {
 						// All entries are processed. We can finish.
 						workers.Stop()

@@ -11,6 +11,15 @@ import (
 	"strings"
 )
 
+func GenerateEncryptionToken() (string, error) {
+	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(bytes), nil
+}
+
 func hasArrayFormat(s string) bool {
 	// Checks for Arrays definitions of the format "[%d.%d]"
 	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
@@ -78,16 +87,7 @@ func removeLastElement(s *[]string) {
 
 func PrintPropertyEntryList(pel PropertyEntryList) {
 	for _, elem := range pel {
-		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
+		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")}`, elem.KeyURI, string(elem.Value))
 		fmt.Println()
 	}
-}
-
-func GenerateEncryptionToken() (string, error) {
-	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(bytes), nil
 }

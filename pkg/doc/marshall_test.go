@@ -829,7 +829,7 @@ var testCases = map[string]struct {
 	},
 }
 
-func TestCreatePropertyList(t *testing.T) {
+func TestCreatePropertyListFromRaw(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
 			var object interface{}

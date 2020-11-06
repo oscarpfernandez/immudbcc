@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFromPropertyList(t *testing.T) {
+func TestCreateRawFromPropertyList(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
 			rawMap := PropertyListToRaw(test.propertyList)

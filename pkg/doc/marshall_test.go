@@ -840,3 +840,9 @@ func TestCreatePropertyListFromRaw(t *testing.T) {
 		})
 	}
 }
+
+func printPropertyEntryList(t *testing.T, pp PropertyEntryList) {
+	for _, elem := range pp {
+		t.Logf(`{ KeyURI: "%s", Value: []byte("%s") }`, elem.KeyURI, string(elem.Value))
+	}
+}

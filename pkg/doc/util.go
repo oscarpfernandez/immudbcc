@@ -2,7 +2,6 @@ package doc
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -72,11 +71,4 @@ func removeLastElement(s *[]string) {
 		return
 	}
 	*s = (*s)[:len(*s)-1]
-}
-
-func PrintPropertyEntryList(pel PropertyEntryList) {
-	for _, elem := range pel {
-		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")}`, elem.KeyURI, string(elem.Value))
-		fmt.Println()
-	}
 }

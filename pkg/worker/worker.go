@@ -3,8 +3,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"sync"
 
 	immuclient "github.com/codenotary/immudb/pkg/client"
@@ -48,7 +46,7 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 
 	w.wg.Add(w.numWorkers)
 	for i := 0; i < w.numWorkers; i++ {
-		log.Printf("Starting worker %d", i)
+		//log.Printf("Starting worker %d", i)
 		go w.worker(ctx)
 	}
 	w.isStarted = true
@@ -58,8 +56,8 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 
 func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
 	go func() {
-		for idx, propEntry := range properties {
-			fmt.Printf("Sending job %d\n", idx)
+		for _, propEntry := range properties {
+			//fmt.Printf("Sending job %d\n", idx)
 			w.jobChan <- &propEntry
 		}
 	}()
@@ -75,7 +73,7 @@ func (w *WriteWorkerPool) Stop() {
 		return
 	}
 
-	fmt.Println("Waiting for go routines to finish")
+	//fmt.Println("Waiting for go routines to finish")
 
 	w.closeOnce.Do(func() {
 		close(w.shutdownChan)
@@ -97,16 +95,16 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 
 					vi, err := w.client.SafeSet(ctx, key, value)
 					if err != nil {
-						fmt.Printf("Error :%v", err)
+						//fmt.Printf("Error :%v", err)
 						w.errChan <- err
 					}
-					fmt.Printf("Stored: %v\n", vi.Index)
+					//fmt.Printf("Stored: %v\n", vi.Index)
 					w.resultChan <- doc.CreatePropertyHash(vi.Index, key, value)
 				}()
 			}
 
 		case <-w.shutdownChan:
-			fmt.Println("Shutdown called")
+			//fmt.Println("Shutdown called")
 			return
 
 		case <-ctx.Done():

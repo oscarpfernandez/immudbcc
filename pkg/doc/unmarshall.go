@@ -9,19 +9,20 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 
 	var rawObject interface{}
 
-	for idx, property := range properties {
+	for _, property := range properties {
 		_, keys, vType := property.DissectKeyURI()
 		value := property.Value
 
 		if hasArrayFormat(keys[0]) {
+			index, capacity := splitArrayFormat(keys[0])
 			// Arrays case.
-			if idx == 0 {
-				rawObject = []interface{}{}
+			if rawObject == nil {
+				rawObject = make([]interface{}, capacity)
 			}
-			propertyListToRaw(rawObject, 0, keys, vType, value)
+			propertyListToRawArrays(index, rawObject, 0, keys, vType, value)
 		} else {
 			// Map case.
-			if idx == 0 {
+			if rawObject == nil {
 				rawObject = map[string]interface{}{}
 			}
 			propertyListToRaw(rawObject, 0, keys, vType, value)

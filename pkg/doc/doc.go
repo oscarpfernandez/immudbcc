@@ -49,22 +49,21 @@ func StructureItemListToProperties(items *schema.StructuredItemList) PropertyEnt
 }
 
 type Hash []byte
-type EncHash []byte
 
 type ObjectManifest struct {
-	ObjectID        string   `json:"object_id"`
-	PropertyIndexes []uint64 `json:"property_indexes"`
-	ObjectHash      Hash     `json:"object_hash"`
+	ObjectID        string   `json:"id"`
+	PropertyIndexes []uint64 `json:"indexes"`
+	ObjectHash      []byte   `json:"hash"`
 }
 
-func (o *ObjectManifest) PropertyIndexList() [][]byte {
-	result := make([][]byte, len(o.PropertyIndexes))
-	for idx, value := range o.PropertyIndexes {
-		result[idx] = fromUint64ToBinary(value)
-	}
-
-	return result
-}
+//func (o *ObjectManifest) PropertyIndexList() [][]byte {
+//	result := make([][]byte, len(o.PropertyIndexes))
+//	for idx, value := range o.PropertyIndexes {
+//		result[idx] = fromUint64ToBinary(value)
+//	}
+//
+//	return result
+//}
 
 func fromUint64ToBinary(v uint64) []byte {
 	var buf [8]byte
@@ -98,7 +97,7 @@ func (p PropertyHashList) Less(i, j int) bool {
 	return p[i].Index <= p[j].Index
 }
 
-func (p PropertyHashList) Hash() Hash {
+func (p PropertyHashList) Hash() []byte {
 	globalSum := sha256.New()
 	for _, hash := range p {
 		globalSum.Write(hash.Hash)

@@ -16,15 +16,14 @@ import (
 )
 
 const (
-	defaultNumWorkers = 500
+	defaultNumWorkers = 50
 )
 
 // Config represents the required API options.
 type Config struct {
-	EncryptionToken string
-	NumberWorkers   int
-	IsSafeSet       bool
-	ClientOptions   *immuclient.Options
+	NumberWorkers int
+	IsSafeSet     bool
+	ClientOptions *immuclient.Options
 }
 
 // DefaultConfig defines a configuration with stock options.
@@ -44,11 +43,6 @@ func (c *Config) WithNumberWorkers(numWorkers int) *Config {
 // WithClientOptions set the client options used to initialise the ImmuDB client.
 func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	c.ClientOptions = options
-	return c
-}
-
-func (c *Config) WithEncryptionToken(token string) *Config {
-	c.EncryptionToken = token
 	return c
 }
 
@@ -92,8 +86,6 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	if err != nil {
 		return nil, err
 	}
-
-	//doc.PrintPropertyEntryList(entryList)
 
 	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.conf.IsSafeSet, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
@@ -142,20 +134,22 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	sort.Sort(resultHash)
 
-	objectManif := &doc.ObjectManifest{
+	indexes := resultHash.Indexes()
+	hash := resultHash.Hash()
+	objectManifest := &doc.ObjectManifest{
 		ObjectID:        docID,
-		PropertyIndexes: resultHash.Indexes(),
-		ObjectHash:      resultHash.Hash(),
+		PropertyIndexes: indexes,
+		ObjectHash:      hash,
 	}
 
-	index, err := m.writeDocumentManifest(ctx, objectManif)
+	index, err := m.writeDocumentManifest(ctx, objectManifest)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store manifes of object '%s': %v", docID, err)
 	}
 
 	return &StoreDocumentResult{
 		Index: index,
-		Hash:  objectManif.ObjectHash,
+		Hash:  objectManifest.ObjectHash,
 	}, nil
 }
 
@@ -189,35 +183,48 @@ type GetDocumentResult struct {
 	Hash    doc.Hash
 }
 
-func (m *Manager) GetDocument(ctx context.Context, docId string, docIndex uint64) (*GetDocumentResult, error) {
+func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
 	objManifestKey := []byte("manifest/" + docId)
 
 	item, err := m.client.Get(ctx, objManifestKey)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("get object: %v\n", string(item.Value.GetPayload()))
 
 	objectManifest := &doc.ObjectManifest{}
-	if err := json.Unmarshal(item.Value.Payload, objManifestKey); err != nil {
+	if err := json.Unmarshal(item.Value.GetPayload(), objectManifest); err != nil {
+		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
+	fmt.Printf("object manifest: %+v", &objectManifest)
 
-	objectItemList, err := m.client.GetBatch(ctx, objectManifest.PropertyIndexList())
-	if err != nil {
-		return nil, err
+	propertyList := doc.PropertyEntryList{}
+	for idx, propertyIndex := range objectManifest.PropertyIndexes {
+		fmt.Printf("property %d\n", idx)
+		object, err := m.client.ByIndex(ctx, propertyIndex)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("property key %s\n", string(object.Key))
+
+		propertyList = append(propertyList, doc.PropertyEntry{
+			KeyURI: string(object.Key),
+			Value:  object.Value.Payload,
+		})
 	}
 
-	propertyList := doc.StructureItemListToProperties(objectItemList)
 	rawObject := doc.PropertyListToRaw(propertyList)
+	fmt.Printf("raw object: %+v\n", rawObject)
 
-	payload, err := json.Marshal(rawObject)
+	payload, err := json.MarshalIndent(rawObject, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &GetDocumentResult{
 		ID:      docId,
-		Index:   docIndex,
+		Index:   item.Index,
 		Payload: payload,
 		Hash:    nil,
 	}, nil

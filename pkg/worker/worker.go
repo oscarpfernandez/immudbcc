@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"sync"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
@@ -32,9 +34,9 @@ func NewWriteWorkerPool(numWorkers int, isSafeSet bool, client immuclient.ImmuCl
 		numWorkers:   numWorkers,
 		isSafeSet:    isSafeSet,
 		client:       client,
-		jobChan:      make(chan *doc.PropertyEntry, 500),
-		resultChan:   make(chan *doc.PropertyHash, 500),
-		errChan:      make(chan error, 500),
+		jobChan:      make(chan *doc.PropertyEntry, 50),
+		resultChan:   make(chan *doc.PropertyHash, 50),
+		errChan:      make(chan error, 50),
 		shutdownChan: make(chan bool),
 		wg:           &sync.WaitGroup{},
 		mu:           &sync.Mutex{},
@@ -59,6 +61,10 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 	return nil
 }
 
+func (w *WriteWorkerPool) GetChannels() (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
+	return w.resultChan, w.shutdownChan, w.errChan
+}
+
 // Write performs the write of a list of property entry list.
 // Return three channels to handle the processing response results:
 // * <-chan *doc.PropertyHash: a read channel of elements inserted in the DB.
@@ -66,9 +72,12 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 // * <-chan error: read channel collecting any errors that might occur during
 // the data ingestion.
 func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
+	fmt.Printf("properties to write: %v\n", properties)
 	go func() {
 		for _, propEntry := range properties {
-			w.jobChan <- &propEntry
+			pp := propEntry // lock value.
+			fmt.Printf("job sent: %v\n", propEntry.KeyURI)
+			w.jobChan <- &pp
 		}
 	}()
 
@@ -101,20 +110,17 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 		select {
 		case job := <-w.jobChan:
 			if job != nil {
-				func() {
-					key, value := []byte(job.KeyURI), job.Value
-					index, err := w.SetData(ctx, key, value)
-					if err != nil {
-						w.errChan <- err
-						return
-					}
-					w.resultChan <- doc.CreatePropertyHash(index, key, value)
-				}()
+				key, value := []byte(job.KeyURI), job.Value
+				log.Printf("Writing key(%s)\n", key)
+				index, err := w.client.Set(ctx, key, value)
+				if err != nil {
+					w.errChan <- err
+					continue
+				}
+				w.resultChan <- doc.CreatePropertyHash(index.Index, key, value)
 			}
-
 		case <-w.shutdownChan:
 			return
-
 		case <-ctx.Done():
 			w.errChan <- errors.New("context expiration timeout")
 			return

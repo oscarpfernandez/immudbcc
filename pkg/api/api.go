@@ -3,14 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/oscarpfernandez/immudbcc/pkg/crypt"
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
 	"github.com/oscarpfernandez/immudbcc/pkg/worker"
 
@@ -144,67 +142,83 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	sort.Sort(resultHash)
 
-	indexes := resultHash.Indexes()
-	objectHash := resultHash.Hash()
-	encObjectHash, err := crypt.Encrypt(objectHash, m.conf.EncryptionToken)
-	if err != nil {
-		return nil, fmt.Errorf("unable to encrypt global hash :%v", err)
-	}
-
 	objectManif := &doc.ObjectManifest{
 		ObjectID:        docID,
-		PropertyIndexes: indexes,
-		ObjectHash:      objectHash,
-		ObjectEncHash:   encObjectHash,
+		PropertyIndexes: resultHash.Indexes(),
+		ObjectHash:      resultHash.Hash(),
 	}
 
-	vi, err := m.writeDocumentManifest(ctx, objectManif)
+	index, err := m.writeDocumentManifest(ctx, objectManif)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store manifes of object '%s': %v", docID, err)
 	}
 
 	return &StoreDocumentResult{
-		Index:   vi.Index,
-		Hash:    objectHash,
-		HashEnc: encObjectHash,
+		Index: index,
+		Hash:  objectManif.ObjectHash,
 	}, nil
 }
 
-func (m *Manager) writeDocumentManifest(ctx context.Context, om *doc.ObjectManifest) (*immuclient.VerifiedIndex, error) {
+func (m *Manager) writeDocumentManifest(ctx context.Context, om *doc.ObjectManifest) (uint64, error) {
 	documentKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
 
 	documentValue, err := json.Marshal(om)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshall object maifest: %v", err)
+		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
 	}
 
-	return m.client.SafeSet(ctx, documentKey, documentValue)
+	if m.conf.IsSafeSet {
+		vi, err := m.client.SafeSet(ctx, documentKey, documentValue)
+		if err != nil {
+			return 0, err
+		}
+		return vi.Index, nil
+	}
+
+	idx, err := m.client.Set(ctx, documentKey, documentValue)
+	if err != nil {
+		return 0, err
+	}
+	return idx.Index, nil
 }
 
-type DocumentProof struct {
-	ObjectID string
-	HashList doc.PropertyHashList
-	Hash     doc.Hash
-	EncHash  doc.EncHash
+type GetDocumentResult struct {
+	ID      string
+	Index   uint64
+	Payload []byte
+	Hash    doc.Hash
 }
 
-func (m *Manager) GetDocumentProof(ctx context.Context, docId string, docIndex uint64) (*DocumentProof, error) {
-	itemList, err := m.client.Scan(ctx, []byte("manifest/"+docId))
+func (m *Manager) GetDocument(ctx context.Context, docId string, docIndex uint64) (*GetDocumentResult, error) {
+	objManifestKey := []byte("manifest/" + docId)
+
+	item, err := m.client.Get(ctx, objManifestKey)
 	if err != nil {
 		return nil, err
 	}
-	found := false
-	for _, item := range itemList.GetItems() {
-		if item.Index == docIndex {
-			found = true
-			break
-		}
+
+	objectManifest := &doc.ObjectManifest{}
+	if err := json.Unmarshal(item.Value.Payload, objManifestKey); err != nil {
+		return nil, err
 	}
 
-	if !found {
-		return nil, errors.New("unable to find document")
+	objectItemList, err := m.client.GetBatch(ctx, objectManifest.PropertyIndexList())
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, nil
+	propertyList := doc.StructureItemListToProperties(objectItemList)
+	rawObject := doc.PropertyListToRaw(propertyList)
 
+	payload, err := json.Marshal(rawObject)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetDocumentResult{
+		ID:      docId,
+		Index:   docIndex,
+		Payload: payload,
+		Hash:    nil,
+	}, nil
 }

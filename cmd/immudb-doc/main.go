@@ -92,7 +92,7 @@ func main() {
 	execTime := time.Now().Sub(now).String()
 	log.Printf("Write document execution time: %s", execTime)
 
-	log.Printf("Result hash: Index(%d), Hash(%s), EncHash(%s)", result.Index, hex.EncodeToString(result.Hash), hex.EncodeToString(result.HashEnc))
+	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, hex.EncodeToString(result.Hash))
 
 }
 

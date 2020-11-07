@@ -1,10 +1,11 @@
 package doc
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"crypto/sha256"
+	"encoding/binary"
 	"strings"
+
+	"github.com/codenotary/immudb/pkg/api/schema"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
 )
@@ -35,28 +36,82 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
+func StructureItemListToProperties(items *schema.StructuredItemList) PropertyEntryList {
+	result := make(PropertyEntryList, len(items.Items))
+	for idx, item := range items.Items {
+		result[idx] = PropertyEntry{
+			KeyURI: string(item.Key),
+			Value:  item.Value.Payload,
+		}
+	}
+
+	return result
+}
+
+type Hash []byte
+type EncHash []byte
+
+type ObjectManifest struct {
+	ObjectID        string   `json:"object_id"`
+	PropertyIndexes []uint64 `json:"property_indexes"`
+	ObjectHash      Hash     `json:"object_hash"`
+}
+
+func (o *ObjectManifest) PropertyIndexList() [][]byte {
+	result := make([][]byte, len(o.PropertyIndexes))
+	for idx, value := range o.PropertyIndexes {
+		result[idx] = fromUint64ToBinary(value)
+	}
+
+	return result
+}
+
+func fromUint64ToBinary(v uint64) []byte {
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], v)
+	return buf[:]
+}
+
 type PropertyHash struct {
 	Index uint64 // Index of property DB entry.
 	Hash  []byte // Hash of property DB entry.
 }
 
-func PropertyHashDigest(index uint64, key, value []byte) *PropertyHash {
+func CreatePropertyHash(index uint64, key, value []byte) *PropertyHash {
 	digest := immuapi.Digest(index, key, value)
 
 	return &PropertyHash{Index: index, Hash: digest[:]}
 }
 
 // Properties defined a list of property index hashes pairs.
-type PropertyHashList []PropertyHash
+type PropertyHashList []*PropertyHash
 
-// GlobalHash defines the global document hash.
-type GlobalHash []byte
+func (p PropertyHashList) Len() int {
+	return len(p)
+}
 
-func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
-	var docMap map[string]interface{}
-	if err := json.NewDecoder(r).Decode(&docMap); err != nil {
-		return nil, fmt.Errorf("unable to unmarshall payload: %v", err)
+func (p PropertyHashList) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (p PropertyHashList) Less(i, j int) bool {
+	return p[i].Index <= p[j].Index
+}
+
+func (p PropertyHashList) Hash() Hash {
+	globalSum := sha256.New()
+	for _, hash := range p {
+		globalSum.Write(hash.Hash)
 	}
 
-	return RawToPropertyList([]string{docID}, docMap), nil
+	return globalSum.Sum(nil)
+}
+
+func (p PropertyHashList) Indexes() []uint64 {
+	indexes := make([]uint64, len(p))
+	for idx, pp := range p {
+		indexes[idx] = pp.Index
+	}
+
+	return indexes
 }

@@ -2,19 +2,66 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
 
+	"github.com/oscarpfernandez/immudbcc/pkg/api"
+	"github.com/oscarpfernandez/immudbcc/pkg/crypt"
+	"github.com/oscarpfernandez/immudbcc/pkg/server"
+
 	immuapi "github.com/codenotary/immudb/pkg/api"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
-	"github.com/oscarpfernandez/immudbcc/pkg/server"
 )
 
 func main() {
+	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
+	jsonPath := fsWrite.String("input-json", "", "JSON path of the file to store")
+	numWorkers := fsWrite.Int("workers", 50, "number of workers")
+
+	if len(os.Args) <= 1 {
+		fmt.Printf(os.Args[0] + " <read | write>  [flags]\n")
+		fmt.Println("* Flags <write>")
+		fsWrite.PrintDefaults()
+		os.Exit(1)
+	}
+
+	switch os.Args[1] {
+	case "write":
+		fsWrite.Parse(os.Args[2:])
+	case "read":
+		// TODO: implements this.
+	default:
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if fsWrite.Parsed() {
+		if *jsonPath == "" {
+			fsWrite.PrintDefaults()
+			os.Exit(1)
+		} else {
+			if _, err := os.Stat(*jsonPath); os.IsExist(err) {
+				log.Fatalf("File does not exist: %s", err)
+			}
+		}
+	}
+
+	jsonReader, err := openFile(*jsonPath)
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer jsonReader.Close()
+
 	dbServer, err := server.New(server.Config{AuthEnabled: false, LogFile: "immuserver.log"})
+	if err != nil {
+		log.Fatalf("Failed to init server: %v", err)
+	}
 
 	log.Print("Starting ImmuDB Server...")
 	dbServer.Start()
@@ -25,61 +72,37 @@ func main() {
 		log.Print("Stopped ImmuDB Server")
 	}()
 
-	time.Sleep(100 * time.Millisecond)
-
-	options := immuclient.DefaultOptions().WithAuth(false)
-	client, err := immuclient.NewImmuClient(options)
+	token, err := crypt.GenerateEncryptionToken()
 	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+		log.Fatalf("Failed to create encryption token: %v", err)
 	}
+	log.Printf("Encryption token: %s", token)
 
-	ctx := context.Background()
-
-	key2, value2 := []byte("client/employee/name/string"), []byte("MasterCard Baller 12/19")
-	verifiedIndex, err := client.SafeSet(ctx, key2, value2)
+	conf := api.DefaultConfig().WithEncryptionToken(token).WithNumberWorkers(*numWorkers)
+	apiManager, err := api.New(conf)
 	if err != nil {
-		exit(err)
+		log.Fatalf("Failed to start API manager: %v", err)
 	}
-	fmt.Println("   SafeSet - add and verify entry:")
-	printItem(key2, value2, verifiedIndex)
 
-	key3, value3 := []byte("client/employee/name/string"), []byte("MasterCard 2232703813463070 12/19")
-	verifiedIndex, err = client.SafeSet(ctx, key3, value3)
+	now := time.Now()
+	result, err := apiManager.StoreDocument(context.Background(), "docID", jsonReader)
 	if err != nil {
-		exit(err)
+		log.Fatalf("Failed to store document: %v", err)
 	}
-	fmt.Println("   SafeSet - add and verify entry:")
-	printItem(key3, value3, verifiedIndex)
+	execTime := time.Now().Sub(now).String()
+	log.Printf("Write document execution time: %s", execTime)
 
-	value3 = []byte("MasterCard 8069498678459876 10/22")
-	verifiedIndex, err = client.SafeSet(ctx, key3, value3)
+	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, hex.EncodeToString(result.Hash))
+
+}
+
+func openFile(path string) (io.ReadCloser, error) {
+	file, err := os.Open(path)
 	if err != nil {
-		exit(err)
-	}
-	fmt.Println("   SafeSet - update and verify entry:")
-	printItem(key3, value3, verifiedIndex)
-
-	//------> SafeReference
-	key3Ref := append([]byte("reference:"), key3...)
-	verifiedIndex, err = client.SafeReference(ctx, key3Ref, key3)
-	if err != nil {
-		exit(err)
-	}
-	fmt.Println("   SafeReference - add and verify a reference key to an existing entry:")
-	printItem(key3Ref, value3, verifiedIndex)
-
-	//------> Scan
-	prefix := []byte("client:Ms.")
-	structuredItemList, err := client.Scan(ctx, prefix)
-	if err != nil {
-		exit(err)
-	}
-	fmt.Printf("   Scan - iterate over keys having the specified prefix (e.g. \"%s\"):\n", prefix)
-	for _, item := range structuredItemList.Items {
-		printItem(nil, nil, item)
-		fmt.Println("	------")
+		return nil, err
 	}
 
+	return file, nil
 }
 
 func printItem(key []byte, value []byte, message interface{}) {

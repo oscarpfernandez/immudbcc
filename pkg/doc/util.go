@@ -2,7 +2,6 @@ package doc
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -27,41 +26,41 @@ func splitArrayFormat(s string) (index int, capacity int) {
 	return index, capacity
 }
 
-func propertyNil(keys []string) PropertyEntry {
+func PropertyNil(keys []string) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/nil",
 		Value:  nil,
 	}
 }
 
-func propertyString(keys []string, value string) PropertyEntry {
+func PropertyString(keys []string, value string) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/string",
 		Value:  []byte(value),
 	}
 }
 
-func propertyBool(keys []string, value bool) PropertyEntry {
+func PropertyBool(keys []string, value bool) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/bool",
 		Value:  []byte(strconv.FormatBool(value)),
 	}
 }
 
-func propertyFloat64(keys []string, value float64) PropertyEntry {
+func PropertyFloat64(keys []string, value float64) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/float64",
-		Value:  float64ToBinary(value),
+		Value:  Float64ToBinary(value),
 	}
 }
 
-func float64ToBinary(v float64) []byte {
+func Float64ToBinary(v float64) []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], math.Float64bits(v))
 	return buf[:]
 }
 
-func binaryToFloat64(bytes []byte) float64 {
+func BinaryToFloat64(bytes []byte) float64 {
 	bits := binary.BigEndian.Uint64(bytes)
 	float := math.Float64frombits(bits)
 	return float
@@ -72,11 +71,4 @@ func removeLastElement(s *[]string) {
 		return
 	}
 	*s = (*s)[:len(*s)-1]
-}
-
-func printPropertyEntryList(pel PropertyEntryList) {
-	for _, elem := range pel {
-		fmt.Printf(`{KeyURI: "%s", Value: []byte("%s")},`, elem.KeyURI, string(elem.Value))
-		fmt.Println()
-	}
 }

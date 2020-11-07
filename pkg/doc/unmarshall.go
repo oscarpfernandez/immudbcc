@@ -9,19 +9,20 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 
 	var rawObject interface{}
 
-	for idx, property := range properties {
+	for _, property := range properties {
 		_, keys, vType := property.DissectKeyURI()
 		value := property.Value
 
 		if hasArrayFormat(keys[0]) {
+			index, capacity := splitArrayFormat(keys[0])
 			// Arrays case.
-			if idx == 0 {
-				rawObject = []interface{}{}
+			if rawObject == nil {
+				rawObject = make([]interface{}, capacity)
 			}
-			propertyListToRaw(rawObject, 0, keys, vType, value)
+			propertyListToRawArrays(index, rawObject, 0, keys, vType, value)
 		} else {
 			// Map case.
-			if idx == 0 {
+			if rawObject == nil {
 				rawObject = map[string]interface{}{}
 			}
 			propertyListToRaw(rawObject, 0, keys, vType, value)
@@ -45,7 +46,7 @@ func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string,
 			case "bool":
 				object[keys[curKeyIndex]] = string(value) == "true"
 			case "float64":
-				object[keys[curKeyIndex]] = binaryToFloat64(value)
+				object[keys[curKeyIndex]] = BinaryToFloat64(value)
 			}
 		}
 
@@ -85,7 +86,7 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 			case "bool":
 				object[curArrayIndex] = string(value) == "true"
 			case "float64":
-				object[curArrayIndex] = binaryToFloat64(value)
+				object[curArrayIndex] = BinaryToFloat64(value)
 			}
 		}
 		// backtrack

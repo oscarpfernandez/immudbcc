@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	immulogger "github.com/codenotary/immudb/pkg/logger"
 	immuserver "github.com/codenotary/immudb/pkg/server"
@@ -44,6 +45,7 @@ func (s *Server) Start() {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
+	time.Sleep(50 * time.Millisecond)
 }
 
 func (s *Server) Stop() error {

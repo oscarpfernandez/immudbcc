@@ -1,0 +1,9 @@
+{
+  "employee": {
+    "index": 18446744073709551615,
+    "name": "John",
+    "age": 30,
+    "city": "New York",
+    "active": true
+  }
+}

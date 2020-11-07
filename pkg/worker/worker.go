@@ -14,7 +14,6 @@ import (
 
 // WriteWorkerPool represents the pool of DB writer go routines.
 type WriteWorkerPool struct {
-	isSafeSet    bool
 	numWorkers   int
 	isStarted    bool
 	client       immuclient.ImmuClient
@@ -29,10 +28,9 @@ type WriteWorkerPool struct {
 }
 
 // NewWriteWorkerPool creates a new object.
-func NewWriteWorkerPool(numWorkers int, isSafeSet bool, client immuclient.ImmuClient) *WriteWorkerPool {
+func NewWriteWorkerPool(numWorkers int, client immuclient.ImmuClient) *WriteWorkerPool {
 	return &WriteWorkerPool{
 		numWorkers:   numWorkers,
-		isSafeSet:    isSafeSet,
 		client:       client,
 		jobChan:      make(chan *doc.PropertyEntry, 50),
 		resultChan:   make(chan *doc.PropertyHash, 50),
@@ -61,10 +59,6 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 	return nil
 }
 
-func (w *WriteWorkerPool) GetChannels() (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
-	return w.resultChan, w.shutdownChan, w.errChan
-}
-
 // Write performs the write of a list of property entry list.
 // Return three channels to handle the processing response results:
 // * <-chan *doc.PropertyHash: a read channel of elements inserted in the DB.
@@ -76,7 +70,6 @@ func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.P
 	go func() {
 		for _, propEntry := range properties {
 			pp := propEntry // lock value.
-			fmt.Printf("job sent: %v\n", propEntry.KeyURI)
 			w.jobChan <- &pp
 		}
 	}()
@@ -126,22 +119,4 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 			return
 		}
 	}
-}
-
-// SetData stores the key-value data in the database. Returns the insertion
-// index and any errors that might occur.
-func (w *WriteWorkerPool) SetData(ctx context.Context, key, value []byte) (uint64, error) {
-	if w.isSafeSet {
-		vi, err := w.client.SafeSet(ctx, key, value)
-		if err != nil {
-			return 0, err
-		}
-		return vi.Index, err
-	}
-
-	i, err := w.client.Set(ctx, key, value)
-	if err != nil {
-		return 0, err
-	}
-	return i.Index, err
 }

@@ -22,7 +22,6 @@ const (
 // Config represents the required API options.
 type Config struct {
 	NumberWorkers int
-	IsSafeSet     bool
 	ClientOptions *immuclient.Options
 }
 
@@ -43,11 +42,6 @@ func (c *Config) WithNumberWorkers(numWorkers int) *Config {
 // WithClientOptions set the client options used to initialise the ImmuDB client.
 func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	c.ClientOptions = options
-	return c
-}
-
-func (c *Config) WithSafeSet(isSafeSet bool) *Config {
-	c.IsSafeSet = isSafeSet
 	return c
 }
 
@@ -87,7 +81,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 		return nil, err
 	}
 
-	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.conf.IsSafeSet, m.client)
+	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
 		return nil, err
 	}
@@ -161,14 +155,6 @@ func (m *Manager) writeDocumentManifest(ctx context.Context, om *doc.ObjectManif
 		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
 	}
 
-	if m.conf.IsSafeSet {
-		vi, err := m.client.SafeSet(ctx, documentKey, documentValue)
-		if err != nil {
-			return 0, err
-		}
-		return vi.Index, nil
-	}
-
 	idx, err := m.client.Set(ctx, documentKey, documentValue)
 	if err != nil {
 		return 0, err
@@ -180,7 +166,7 @@ type GetDocumentResult struct {
 	ID      string
 	Index   uint64
 	Payload []byte
-	Hash    doc.Hash
+	Hash    []byte
 }
 
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
@@ -206,7 +192,6 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("property key %s\n", string(object.Key))
 
 		propertyList = append(propertyList, doc.PropertyEntry{
 			KeyURI: string(object.Key),
@@ -215,8 +200,6 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 	}
 
 	rawObject := doc.PropertyListToRaw(propertyList)
-	fmt.Printf("raw object: %+v\n", rawObject)
-
 	payload, err := json.MarshalIndent(rawObject, "", "  ")
 	if err != nil {
 		return nil, err

@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"github.com/codenotary/immudb/pkg/api/schema"
-
 	immuapi "github.com/codenotary/immudb/pkg/api"
 )
 
@@ -36,34 +34,11 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
-func StructureItemListToProperties(items *schema.StructuredItemList) PropertyEntryList {
-	result := make(PropertyEntryList, len(items.Items))
-	for idx, item := range items.Items {
-		result[idx] = PropertyEntry{
-			KeyURI: string(item.Key),
-			Value:  item.Value.Payload,
-		}
-	}
-
-	return result
-}
-
-type Hash []byte
-
 type ObjectManifest struct {
 	ObjectID        string   `json:"id"`
 	PropertyIndexes []uint64 `json:"indexes"`
 	ObjectHash      []byte   `json:"hash"`
 }
-
-//func (o *ObjectManifest) PropertyIndexList() [][]byte {
-//	result := make([][]byte, len(o.PropertyIndexes))
-//	for idx, value := range o.PropertyIndexes {
-//		result[idx] = fromUint64ToBinary(value)
-//	}
-//
-//	return result
-//}
 
 func fromUint64ToBinary(v uint64) []byte {
 	var buf [8]byte

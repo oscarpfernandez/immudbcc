@@ -22,13 +22,13 @@ func rawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 	// https://www.w3schools.com/js/js_json_datatypes.asp
 	switch v := value.(type) {
 	case nil:
-		list = append(list, propertyNil(keys))
+		list = append(list, PropertyNil(keys))
 	case string:
-		list = append(list, propertyString(keys, v))
+		list = append(list, PropertyString(keys, v))
 	case bool:
-		list = append(list, propertyBool(keys, v))
+		list = append(list, PropertyBool(keys, v))
 	case float64:
-		list = append(list, propertyFloat64(keys, v))
+		list = append(list, PropertyFloat64(keys, v))
 	case map[string]interface{}:
 		for key, value := range v {
 			keys = append(keys, key)

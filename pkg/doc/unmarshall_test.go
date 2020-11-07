@@ -10,9 +10,9 @@ import (
 func TestCreateRawFromPropertyList(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
-			rawMap := PropertyListToRaw(test.propertyList)
+			rawObject := PropertyListToRaw(test.propertyList)
 
-			gotPayload, err := json.Marshal(rawMap)
+			gotPayload, err := json.Marshal(rawObject)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

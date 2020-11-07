@@ -18,13 +18,14 @@ import (
 )
 
 const (
-	defaultNumWorkers = 5
+	defaultNumWorkers = 500
 )
 
 // Config represents the required API options.
 type Config struct {
 	EncryptionToken string
 	NumberWorkers   int
+	IsSafeSet       bool
 	ClientOptions   *immuclient.Options
 }
 
@@ -50,6 +51,11 @@ func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 
 func (c *Config) WithEncryptionToken(token string) *Config {
 	c.EncryptionToken = token
+	return c
+}
+
+func (c *Config) WithSafeSet(isSafeSet bool) *Config {
+	c.IsSafeSet = isSafeSet
 	return c
 }
 
@@ -91,7 +97,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	//doc.PrintPropertyEntryList(entryList)
 
-	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.client)
+	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.conf.IsSafeSet, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
 		return nil, err
 	}

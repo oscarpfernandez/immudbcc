@@ -46,7 +46,7 @@ func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string,
 			case "bool":
 				object[keys[curKeyIndex]] = string(value) == "true"
 			case "float64":
-				object[keys[curKeyIndex]] = binaryToFloat64(value)
+				object[keys[curKeyIndex]] = BinaryToFloat64(value)
 			}
 		}
 
@@ -86,7 +86,7 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 			case "bool":
 				object[curArrayIndex] = string(value) == "true"
 			case "float64":
-				object[curArrayIndex] = binaryToFloat64(value)
+				object[curArrayIndex] = BinaryToFloat64(value)
 			}
 		}
 		// backtrack

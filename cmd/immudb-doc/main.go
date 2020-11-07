@@ -22,6 +22,7 @@ import (
 func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
 	jsonPath := fsWrite.String("input-json", "", "JSON path of the file to store")
+	numWorkers := fsWrite.Int("workers", 50, "number of workers")
 
 	if len(os.Args) <= 1 {
 		fmt.Printf(os.Args[0] + " <read | write>  [flags]\n")
@@ -77,7 +78,7 @@ func main() {
 	}
 	log.Printf("Encryption token: %s", token)
 
-	conf := api.DefaultConfig().WithEncryptionToken(token)
+	conf := api.DefaultConfig().WithEncryptionToken(token).WithNumberWorkers(*numWorkers)
 	apiManager, err := api.New(conf)
 	if err != nil {
 		log.Fatalf("Failed to start API manager: %v", err)

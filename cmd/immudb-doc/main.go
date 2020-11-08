@@ -122,13 +122,13 @@ func readDocumentFromDB(numWorkers int, jsonPath string) {
 		log.Fatalf("Failed to store document: %v", err)
 	}
 
+	log.Printf("Writing JSON file: %s", jsonPath)
 	if _, err := jsonWriter.Write(result.Payload); err != nil {
 		log.Fatalf("Failed to write JSON file: %v", err)
 	}
 
 	execTime := time.Now().Sub(now).String()
-	log.Printf("Write document execution time: %s", execTime)
-	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, hex.EncodeToString(result.Hash))
+	log.Printf("Read document execution time: %s", execTime)
 }
 
 func openReadFile(path string) (io.ReadCloser, error) {

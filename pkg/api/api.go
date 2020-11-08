@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -170,28 +171,27 @@ type GetDocumentResult struct {
 }
 
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
-	objManifestKey := []byte("manifest/" + docId)
+	objectManifestKey := []byte("manifest/" + docId)
 
-	item, err := m.client.Get(ctx, objManifestKey)
+	log.Printf("Reading object manifest: documentID(%s)", objectManifestKey)
+	item, err := m.client.Get(ctx, objectManifestKey)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("get object: %v\n", string(item.Value.GetPayload()))
 
 	objectManifest := &doc.ObjectManifest{}
 	if err := json.Unmarshal(item.Value.GetPayload(), objectManifest); err != nil {
 		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
-	fmt.Printf("object manifest: %+v", &objectManifest)
 
 	propertyList := doc.PropertyEntryList{}
-	for idx, propertyIndex := range objectManifest.PropertyIndexes {
-		fmt.Printf("property %d\n", idx)
+	for _, propertyIndex := range objectManifest.PropertyIndexes {
 		object, err := m.client.ByIndex(ctx, propertyIndex)
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("Reading property: index[%d] -> key[%s]", object.Index, object.Key)
 
 		propertyList = append(propertyList, doc.PropertyEntry{
 			KeyURI: string(object.Key),
@@ -199,6 +199,7 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		})
 	}
 
+	log.Print("Reconstructing JSON object.")
 	rawObject := doc.PropertyListToRaw(propertyList)
 	payload, err := json.MarshalIndent(rawObject, "", "  ")
 	if err != nil {

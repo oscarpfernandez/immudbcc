@@ -46,3 +46,10 @@ func rawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 
 	return list
 }
+
+func removeLastElement(s *[]string) {
+	if s == nil || len(*s) == 0 {
+		return
+	}
+	*s = (*s)[:len(*s)-1]
+}

@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"sync"
 
@@ -66,7 +65,6 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 // * <-chan error: read channel collecting any errors that might occur during
 // the data ingestion.
 func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
-	fmt.Printf("properties to write: %v\n", properties)
 	go func() {
 		for _, propEntry := range properties {
 			pp := propEntry // lock value.
@@ -104,7 +102,7 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 		case job := <-w.jobChan:
 			if job != nil {
 				key, value := []byte(job.KeyURI), job.Value
-				log.Printf("Writing key(%s)\n", key)
+				log.Printf("Writing property: key(%s)", key)
 				index, err := w.client.Set(ctx, key, value)
 				if err != nil {
 					w.errChan <- err

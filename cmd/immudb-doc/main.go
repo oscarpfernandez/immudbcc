@@ -12,16 +12,12 @@ import (
 
 	"github.com/oscarpfernandez/immudbcc/pkg/api"
 	"github.com/oscarpfernandez/immudbcc/pkg/server"
-
-	immuapi "github.com/codenotary/immudb/pkg/api"
-	immuschema "github.com/codenotary/immudb/pkg/api/schema"
-	immuclient "github.com/codenotary/immudb/pkg/client"
 )
 
 func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
 	inJSONPath := fsWrite.String("input-json", "", "JSON path of the file to store")
-	numWorkers := fsWrite.Int("workers", 5, "number of workers")
+	numWorkers := fsWrite.Int("workers", 50, "number of workers")
 
 	fsRead := flag.NewFlagSet("read", flag.ContinueOnError)
 	outJSONPath := fsRead.String("output-json", "", "JSON path of the file to read")
@@ -147,61 +143,4 @@ func openWriteFile(path string) (io.WriteCloser, error) {
 	}
 
 	return file, nil
-}
-
-func printItem(key []byte, value []byte, message interface{}) {
-	var index uint64
-	ts := uint64(time.Now().Unix())
-	var verified, isVerified bool
-	var hash []byte
-	switch m := message.(type) {
-	case *immuschema.Index:
-		index = m.Index
-		dig := immuapi.Digest(index, key, value)
-		hash = dig[:]
-	case *immuclient.VerifiedIndex:
-		index = m.Index
-		dig := immuapi.Digest(index, key, value)
-		hash = dig[:]
-		verified = m.Verified
-		isVerified = true
-	case *immuschema.Item:
-		key = m.Key
-		value = m.Value
-		index = m.Index
-		hash = m.Hash()
-	case *immuschema.StructuredItem:
-		key = m.Key
-		value = m.Value.Payload
-		ts = m.Value.Timestamp
-		index = m.Index
-		hash, _ = m.Hash()
-	case *immuclient.VerifiedItem:
-		key = m.Key
-		value = m.Value
-		index = m.Index
-		ts = m.Time
-		verified = m.Verified
-		isVerified = true
-		me, _ := immuschema.Merge(value, ts)
-		dig := immuapi.Digest(index, key, me)
-		hash = dig[:]
-
-	}
-	if !isVerified {
-		fmt.Printf("	index:		%d\n	key:		%s\n	value:		%s\n	hash:		%x\n	time:		%s\n",
-			index,
-			key,
-			value,
-			hash,
-			time.Unix(int64(ts), 0))
-		return
-	}
-	fmt.Printf("	index:		%d\n	key:		%s\n	value:		%s\n	hash:		%x\n	time:		%s\n	verified:	%t\n",
-		index,
-		key,
-		value,
-		hash,
-		time.Unix(int64(ts), 0),
-		verified)
 }

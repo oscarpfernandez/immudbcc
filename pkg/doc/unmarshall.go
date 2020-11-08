@@ -1,7 +1,10 @@
 package doc
 
 import (
+	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 func PropertyListToRaw(properties PropertyEntryList) interface{} {
@@ -110,4 +113,22 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 			propertyListToRawMap(object[curArrayIndex], curKeyIndex+1, keys, valueType, value)
 		}
 	}
+}
+
+func hasArrayFormat(s string) bool {
+	// Checks for Arrays definitions of the format "[%d.%d]"
+	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
+}
+
+func splitArrayFormat(s string) (index int, capacity int) {
+	if !hasArrayFormat(s) {
+		panic("not array format")
+	}
+
+	indexCapStr := strings.Trim(s, "[]")
+	valuesStr := strings.Split(indexCapStr, ".")
+	index, _ = strconv.Atoi(valuesStr[0])
+	capacity, _ = strconv.Atoi(valuesStr[1])
+
+	return index, capacity
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -96,7 +95,7 @@ func writeDocumentToDB(numWorkers int, jsonPath string) {
 	}
 	execTime := time.Now().Sub(now).String()
 	log.Printf("Write document execution time: %s", execTime)
-	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, hex.EncodeToString(result.Hash))
+	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, result.Hash)
 }
 
 func readDocumentFromDB(numWorkers int, jsonPath string) {

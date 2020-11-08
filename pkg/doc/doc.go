@@ -3,6 +3,7 @@ package doc
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"math"
 	"strconv"
 	"strings"
@@ -62,13 +63,15 @@ func (p PropertyHashList) Less(i, j int) bool {
 	return p[i].Index <= p[j].Index
 }
 
-func (p PropertyHashList) Hash() []byte {
+func (p PropertyHashList) Hash() string {
 	globalSum := sha256.New()
 	for _, hash := range p {
 		globalSum.Write(hash.Hash)
 	}
 
-	return globalSum.Sum(nil)
+	sum := globalSum.Sum(nil)
+
+	return hex.EncodeToString(sum)
 }
 
 func (p PropertyHashList) Indexes() []uint64 {

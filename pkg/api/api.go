@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,15 +48,21 @@ func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 }
 
 type ObjectManifest struct {
-	ObjectID        string   `json:"id"`
-	PropertyIndexes []uint64 `json:"indexes"`
-	ObjectHash      []byte   `json:"hash"`
+	ObjectID string   `json:"id"`
+	Indexes  []uint64 `json:"indexes"`
+	Hash     string   `json:"hash"`
 }
 
 type StoreDocumentResult struct {
+	Index uint64
+	Hash  string
+}
+
+type GetDocumentResult struct {
+	ID      string
 	Index   uint64
-	Hash    []byte
-	HashEnc []byte
+	Payload []byte
+	Hash    string
 }
 
 // Manager represents the object required to use the API.
@@ -136,14 +143,17 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	}
 
 	sort.Sort(resultHash)
-
-	objectManifest := &ObjectManifest{
-		ObjectID:        docID,
-		PropertyIndexes: resultHash.Indexes(),
-		ObjectHash:      resultHash.Hash(),
+	for _, hash := range resultHash {
+		fmt.Printf("Index(%d) \t Hash(%s)\n", hash.Index, hex.EncodeToString(hash.Hash))
 	}
 
-	index, err := m.writeDocumentManifest(ctx, objectManifest)
+	manifest := &ObjectManifest{
+		ObjectID: docID,
+		Indexes:  resultHash.Indexes(),
+		Hash:     resultHash.Hash(),
+	}
+
+	index, err := m.writeDocumentManifest(ctx, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store manifes of object '%s': %v", docID, err)
 	}
@@ -152,7 +162,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	return &StoreDocumentResult{
 		Index: index,
-		Hash:  objectManifest.ObjectHash,
+		Hash:  manifest.Hash,
 	}, nil
 }
 
@@ -171,13 +181,6 @@ func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest)
 	return idx.Index, nil
 }
 
-type GetDocumentResult struct {
-	ID      string
-	Index   uint64
-	Payload []byte
-	Hash    []byte
-}
-
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
 	docManifestKey := []byte("manifest/" + docId)
 
@@ -193,10 +196,11 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
-	log.Printf("Object manifest: Key(%s) - PropertyIndexes(%v)", string(docManifestItem.Key), objectManifest.PropertyIndexes)
+	log.Printf("Object manifest: Key(%s) - Indexes(%v)", string(docManifestItem.Key), objectManifest.Indexes)
 
 	propertyList := doc.PropertyEntryList{}
-	for _, propertyIndex := range objectManifest.PropertyIndexes {
+	propertyHashList := doc.PropertyHashList{}
+	for _, propertyIndex := range objectManifest.Indexes {
 		object, err := m.client.ByIndex(ctx, propertyIndex)
 		if err != nil {
 			return nil, err
@@ -207,6 +211,7 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 			KeyURI: string(object.Key),
 			Value:  object.Value.Payload,
 		})
+		propertyHashList = append(propertyHashList, doc.CreatePropertyHash(object.Index, object.Key, object.Value.GetPayload()))
 	}
 
 	log.Print("Reconstructing JSON object...")
@@ -221,6 +226,6 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		ID:      docId,
 		Index:   docManifestItem.Index,
 		Payload: payload,
-		Hash:    nil,
+		Hash:    propertyHashList.Hash(),
 	}, nil
 }

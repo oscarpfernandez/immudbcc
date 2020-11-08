@@ -46,6 +46,12 @@ func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	return c
 }
 
+type ObjectManifest struct {
+	ObjectID        string   `json:"id"`
+	PropertyIndexes []uint64 `json:"indexes"`
+	ObjectHash      []byte   `json:"hash"`
+}
+
 type StoreDocumentResult struct {
 	Index   uint64
 	Hash    []byte
@@ -131,7 +137,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	sort.Sort(resultHash)
 
-	objectManifest := &doc.ObjectManifest{
+	objectManifest := &ObjectManifest{
 		ObjectID:        docID,
 		PropertyIndexes: resultHash.Indexes(),
 		ObjectHash:      resultHash.Hash(),
@@ -150,7 +156,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	}, nil
 }
 
-func (m *Manager) writeDocumentManifest(ctx context.Context, om *doc.ObjectManifest) (uint64, error) {
+func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest) (uint64, error) {
 	objectManifestKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
 
 	documentValue, err := json.Marshal(om)
@@ -182,7 +188,7 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 	}
 	log.Printf("Object manifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
 
-	objectManifest := &doc.ObjectManifest{}
+	objectManifest := &ObjectManifest{}
 	if err := json.Unmarshal(docManifestItem.Value.GetPayload(), objectManifest); err != nil {
 		fmt.Printf("unmarshal failed")
 		return nil, err

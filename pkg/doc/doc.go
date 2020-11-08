@@ -36,12 +36,6 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
-type ObjectManifest struct {
-	ObjectID        string   `json:"id"`
-	PropertyIndexes []uint64 `json:"indexes"`
-	ObjectHash      []byte   `json:"hash"`
-}
-
 type PropertyHash struct {
 	Index uint64 // Index of property DB entry.
 	Hash  []byte // Hash of property DB entry.

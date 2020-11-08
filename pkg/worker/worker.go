@@ -102,7 +102,7 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 		case job := <-w.jobChan:
 			if job != nil {
 				key, value := []byte(job.KeyURI), job.Value
-				log.Printf("Writing property: key(%s)", key)
+				log.Printf("Writing property: Key(%s)", key)
 				index, err := w.client.Set(ctx, key, value)
 				if err != nil {
 					w.errChan <- err

@@ -125,11 +125,13 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 	}
 }
 
+var arrayRegExp = regexp.MustCompile(`^\[\d+\.\d+]$`)
+
 // hasArrayFormat checks if the current node of the path describes and array element.
 func hasArrayFormat(s string) bool {
 	// Checks for Arrays definitions of the format "[%d.%d]" where the first
 	// parameter describes the current index and the second the total capacity.
-	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
+	return arrayRegExp.MatchString(s)
 }
 
 // splitArrayFormat given a current array element, returns the associates index

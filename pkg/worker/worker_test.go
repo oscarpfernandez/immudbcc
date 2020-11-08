@@ -18,10 +18,6 @@ type ImmuClientMock struct {
 	setFn     func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
 }
 
-func (m *ImmuClientMock) SafeSet(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
-	return m.safeSetFn(ctx, key, value)
-}
-
 func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
 	return m.setFn(ctx, key, value)
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// PropertyListToRaw converts a list of PropertyEntry to the raw original
+// document object.
 func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	sort.Sort(properties)
 
@@ -35,6 +37,10 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	return rawObject
 }
 
+// propertyListToRawMap recursively analyses a PropertyEntry's Key, building
+// the equivalent structure in the raw document object. This cases deals with
+// the case where the current root element in the path being analysed consists
+// of a Map.
 func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
@@ -76,6 +82,10 @@ func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []stri
 	}
 }
 
+// propertyListToRawArrays recursively analyses a PropertyEntry's Key, building
+// the equivalent structure in the raw document object. This cases deals with
+// the case where the current root element in the path being analysed consists
+// of an Array.
 func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
@@ -115,11 +125,15 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 	}
 }
 
+// hasArrayFormat checks if the current node of the path describes and array element.
 func hasArrayFormat(s string) bool {
-	// Checks for Arrays definitions of the format "[%d.%d]"
+	// Checks for Arrays definitions of the format "[%d.%d]" where the first
+	// parameter describes the current index and the second the total capacity.
 	return regexp.MustCompile(`^\[\d+\.\d+]$`).MatchString(s)
 }
 
+// splitArrayFormat given a current array element, returns the associates index
+// and total capacity.
 func splitArrayFormat(s string) (index int, capacity int) {
 	if !hasArrayFormat(s) {
 		panic("not array format")

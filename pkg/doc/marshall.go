@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+// GeneratePropertyList creates the property list for given document provided
+// a reader to the raw payload.
 func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
 	var docMap interface{}
 	if err := json.NewDecoder(r).Decode(&docMap); err != nil {
@@ -16,6 +18,10 @@ func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) 
 	return rawToPropertyList([]string{docID}, docMap), nil
 }
 
+// rawToPropertyList recursively transverses the raw object tree, building a
+// list of property entries for every leaf of said tree. Each property contains
+// Key-Value pair. The Key, describes a path from the root to the leaf, and the
+// Value is the leaf's value.
 func rawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 	list := PropertyEntryList{}
 
@@ -47,6 +53,7 @@ func rawToPropertyList(keys []string, value interface{}) PropertyEntryList {
 	return list
 }
 
+// removeLastElement removes the last object of a non-empty slice of strings.
 func removeLastElement(s *[]string) {
 	if s == nil || len(*s) == 0 {
 		return

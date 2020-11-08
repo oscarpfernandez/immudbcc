@@ -3,13 +3,12 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
 
-	"github.com/codenotary/immudb/pkg/api/schema"
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
 	"github.com/stretchr/testify/assert"
@@ -17,21 +16,28 @@ import (
 
 // ImmuClientMock defines an inversion of control mock.
 type ImmuClientMock struct {
+	mu *sync.RWMutex
 	immuclient.ImmuClient
 	setFn     func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
-	getFn     func(ctx context.Context, key []byte) (*schema.StructuredItem, error)
-	byIndexFn func(ctx context.Context, index uint64) (*schema.StructuredItem, error)
+	getFn     func(ctx context.Context, key []byte) (*immuschema.StructuredItem, error)
+	byIndexFn func(ctx context.Context, index uint64) (*immuschema.StructuredItem, error)
 }
 
 func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.setFn(ctx, key, value)
 }
 
-func (m *ImmuClientMock) Get(ctx context.Context, key []byte) (*schema.StructuredItem, error) {
+func (m *ImmuClientMock) Get(ctx context.Context, key []byte) (*immuschema.StructuredItem, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.getFn(ctx, key)
 }
 
-func (m *ImmuClientMock) ByIndex(ctx context.Context, index uint64) (*schema.StructuredItem, error) {
+func (m *ImmuClientMock) ByIndex(ctx context.Context, index uint64) (*immuschema.StructuredItem, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.byIndexFn(ctx, index)
 }
 
@@ -45,7 +51,6 @@ func TestManager_StoreDocument(t *testing.T) {
 	tests := map[string]struct {
 		jsonPayload         []byte
 		expStoredProperties []KeyValue
-		expResult           *StoreDocumentResult
 	}{
 		"Stored document": {
 			jsonPayload: []byte(`{
@@ -120,10 +125,6 @@ func TestManager_StoreDocument(t *testing.T) {
 					"hash":"8a882c474f519a42bbf13adc6f5b0343ba56afa162bdc110078a9c6c49cba9de"
 				}`)},
 			},
-			expResult: &StoreDocumentResult{
-				Index: 25,
-				Hash:  "",
-			},
 		},
 	}
 
@@ -131,7 +132,10 @@ func TestManager_StoreDocument(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var gotStoredProperties []KeyValue
 			var index uint64 = 0
+
+			// Define ImmuDB client mock.
 			clientMock := &ImmuClientMock{
+				mu: &sync.RWMutex{},
 				setFn: func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
 					gotStoredProperties = append(gotStoredProperties, KeyValue{Index: index, Key: string(key), Value: value})
 					defer func() { index++ }()
@@ -179,16 +183,8 @@ func TestManager_StoreDocument(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
+			assert.JSONEq(t, string(test.jsonPayload), string(getResult.Payload))
 			assert.Equal(t, storeResult.Hash, getResult.Hash)
-			assert.JSONEq(t, string(test.jsonPayload), string(getResult.Payload), "stored and retrieved payloads should match")
 		})
 	}
-}
-
-func MustMarshall(s interface{}) string {
-	payload, err := json.Marshal(s)
-	if err != nil {
-		panic(err)
-	}
-	return string(payload)
 }

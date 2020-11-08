@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -143,9 +142,6 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	}
 
 	sort.Sort(resultHash)
-	for _, hash := range resultHash {
-		fmt.Printf("Index(%d) \t Hash(%s)\n", hash.Index, hex.EncodeToString(hash.Hash))
-	}
 
 	manifest := &ObjectManifest{
 		ObjectID: docID,

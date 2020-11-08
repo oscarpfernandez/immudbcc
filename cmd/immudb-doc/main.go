@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/api"
-	"github.com/oscarpfernandez/immudbcc/pkg/crypt"
 	"github.com/oscarpfernandez/immudbcc/pkg/server"
 
 	immuapi "github.com/codenotary/immudb/pkg/api"
@@ -21,13 +20,16 @@ import (
 
 func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
-	jsonPath := fsWrite.String("input-json", "", "JSON path of the file to store")
-	numWorkers := fsWrite.Int("workers", 50, "number of workers")
+	inJSONPath := fsWrite.String("input-json", "", "JSON path of the file to store")
+	numWorkers := fsWrite.Int("workers", 5, "number of workers")
+
+	fsRead := flag.NewFlagSet("read", flag.ContinueOnError)
+	outJSONPath := fsRead.String("output-json", "", "JSON path of the file to read")
 
 	if len(os.Args) <= 1 {
 		fmt.Printf(os.Args[0] + " <read | write>  [flags]\n")
 		fmt.Println("* Flags <write>")
-		fsWrite.PrintDefaults()
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
@@ -35,28 +37,11 @@ func main() {
 	case "write":
 		fsWrite.Parse(os.Args[2:])
 	case "read":
-		// TODO: implements this.
+		fsRead.Parse(os.Args[2:])
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-
-	if fsWrite.Parsed() {
-		if *jsonPath == "" {
-			fsWrite.PrintDefaults()
-			os.Exit(1)
-		} else {
-			if _, err := os.Stat(*jsonPath); os.IsExist(err) {
-				log.Fatalf("File does not exist: %s", err)
-			}
-		}
-	}
-
-	jsonReader, err := openFile(*jsonPath)
-	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
-	}
-	defer jsonReader.Close()
 
 	dbServer, err := server.New(server.Config{AuthEnabled: false, LogFile: "immuserver.log"})
 	if err != nil {
@@ -72,13 +57,37 @@ func main() {
 		log.Print("Stopped ImmuDB Server")
 	}()
 
-	token, err := crypt.GenerateEncryptionToken()
-	if err != nil {
-		log.Fatalf("Failed to create encryption token: %v", err)
+	if os.Args[1] == "write" && fsWrite.Parsed() {
+		if *inJSONPath == "" {
+			fsWrite.PrintDefaults()
+			os.Exit(1)
+		} else {
+			writeDocumentToDB(*numWorkers, *inJSONPath)
+		}
 	}
-	log.Printf("Encryption token: %s", token)
 
-	conf := api.DefaultConfig().WithEncryptionToken(token).WithNumberWorkers(*numWorkers)
+	if os.Args[1] == "read" && fsRead.Parsed() {
+		if *outJSONPath == "" {
+			fsWrite.PrintDefaults()
+			os.Exit(1)
+		} else {
+			readDocumentFromDB(*numWorkers, *outJSONPath)
+		}
+	}
+}
+
+func writeDocumentToDB(numWorkers int, jsonPath string) {
+	if _, err := os.Stat(jsonPath); os.IsExist(err) {
+		log.Fatalf("File does not exist: %s", err)
+	}
+
+	jsonReader, err := openReadFile(jsonPath)
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer jsonReader.Close()
+
+	conf := api.DefaultConfig().WithNumberWorkers(numWorkers)
 	apiManager, err := api.New(conf)
 	if err != nil {
 		log.Fatalf("Failed to start API manager: %v", err)
@@ -91,13 +100,48 @@ func main() {
 	}
 	execTime := time.Now().Sub(now).String()
 	log.Printf("Write document execution time: %s", execTime)
-
 	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, hex.EncodeToString(result.Hash))
-
 }
 
-func openFile(path string) (io.ReadCloser, error) {
+func readDocumentFromDB(numWorkers int, jsonPath string) {
+	jsonWriter, err := openWriteFile(jsonPath)
+	if err != nil {
+		log.Fatalf("Failed to open file: %v", err)
+	}
+	defer jsonWriter.Close()
+
+	conf := api.DefaultConfig().WithNumberWorkers(numWorkers)
+	apiManager, err := api.New(conf)
+	if err != nil {
+		log.Fatalf("Failed to start API manager: %v", err)
+	}
+
+	now := time.Now()
+	result, err := apiManager.GetDocument(context.Background(), "docID")
+	if err != nil {
+		log.Fatalf("Failed to store document: %v", err)
+	}
+
+	log.Printf("Writing JSON file: %s", jsonPath)
+	if _, err := jsonWriter.Write(result.Payload); err != nil {
+		log.Fatalf("Failed to write JSON file: %v", err)
+	}
+
+	execTime := time.Now().Sub(now).String()
+	log.Printf("Read document execution time: %s", execTime)
+}
+
+func openReadFile(path string) (io.ReadCloser, error) {
 	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func openWriteFile(path string) (io.WriteCloser, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +204,4 @@ func printItem(key []byte, value []byte, message interface{}) {
 		hash,
 		time.Unix(int64(ts), 0),
 		verified)
-}
-
-func exit(err error) {
-	_, _ = fmt.Fprintln(os.Stderr, err)
-	os.Exit(1)
 }

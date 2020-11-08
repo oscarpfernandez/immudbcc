@@ -76,7 +76,7 @@ func TestWorker(t *testing.T) {
 					},
 				}
 
-				workers := NewWriteWorkerPool(test.numWorkers, false, mock)
+				workers := NewWriteWorkerPool(test.numWorkers, mock)
 				workers.StartWorkers(context.Background())
 				workers.StartWorkers(context.Background()) // second start should take no effect.
 				defer func() {

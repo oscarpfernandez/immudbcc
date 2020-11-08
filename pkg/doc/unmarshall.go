@@ -25,14 +25,14 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 			if rawObject == nil {
 				rawObject = map[string]interface{}{}
 			}
-			propertyListToRaw(rawObject, 0, keys, vType, value)
+			propertyListToRawMap(rawObject, 0, keys, vType, value)
 		}
 	}
 
 	return rawObject
 }
 
-func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
+func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
 		switch object := parentObject.(type) {
@@ -68,7 +68,7 @@ func propertyListToRaw(parentObject interface{}, curKeyIndex int, keys []string,
 			if object[keys[curKeyIndex]] == nil {
 				object[keys[curKeyIndex]] = map[string]interface{}{}
 			}
-			propertyListToRaw(object[keys[curKeyIndex]], curKeyIndex+1, keys, valueType, value)
+			propertyListToRawMap(object[keys[curKeyIndex]], curKeyIndex+1, keys, valueType, value)
 		}
 	}
 }
@@ -107,7 +107,7 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 			if object[curArrayIndex] == nil {
 				object[curArrayIndex] = map[string]interface{}{}
 			}
-			propertyListToRaw(object[curArrayIndex], curKeyIndex+1, keys, valueType, value)
+			propertyListToRawMap(object[curArrayIndex], curKeyIndex+1, keys, valueType, value)
 		}
 	}
 }

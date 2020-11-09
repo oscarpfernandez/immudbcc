@@ -37,9 +37,9 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	return rawObject
 }
 
-// propertyListToRawMap recursively analyses a PropertyEntry's Key, building
+// propertyListToRawMap recursively analyzes a PropertyEntry's Key, building
 // the equivalent structure in the raw document object. This cases deals with
-// the case where the current root element in the path being analysed consists
+// the case where the current root element in the path being analyzed consists
 // of a Map.
 func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
@@ -82,9 +82,9 @@ func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []stri
 	}
 }
 
-// propertyListToRawArrays recursively analyses a PropertyEntry's Key, building
+// propertyListToRawArrays recursively analyzes a PropertyEntry's Key, building
 // the equivalent structure in the raw document object. This cases deals with
-// the case where the current root element in the path being analysed consists
+// the case where the current root element in the path being analyzed consists
 // of an Array.
 func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object

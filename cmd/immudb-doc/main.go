@@ -30,9 +30,9 @@ func main() {
 
 	switch os.Args[1] {
 	case "write":
-		fsWrite.Parse(os.Args[2:])
+		_ = fsWrite.Parse(os.Args[2:])
 	case "read":
-		fsRead.Parse(os.Args[2:])
+		_ = fsRead.Parse(os.Args[2:])
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -93,7 +93,7 @@ func writeDocumentToDB(numWorkers int, jsonPath string) {
 	if err != nil {
 		log.Fatalf("Failed to store document: %v", err)
 	}
-	execTime := time.Now().Sub(now).String()
+	execTime := time.Since(now).String()
 	log.Printf("Write document execution time: %s", execTime)
 	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, result.Hash)
 }
@@ -122,7 +122,7 @@ func readDocumentFromDB(numWorkers int, jsonPath string) {
 		log.Fatalf("Failed to write JSON file: %v", err)
 	}
 
-	execTime := time.Now().Sub(now).String()
+	execTime := time.Since(now).String()
 	log.Printf("Read document execution time: %s", execTime)
 }
 

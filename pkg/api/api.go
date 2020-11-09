@@ -40,7 +40,7 @@ func (c *Config) WithNumberWorkers(numWorkers int) *Config {
 	return c
 }
 
-// WithClientOptions set the client options used to initialise the ImmuDB client.
+// WithClientOptions set the client options used to initialize the ImmuDB client.
 func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	c.ClientOptions = options
 	return c
@@ -85,7 +85,7 @@ func New(c *Config) (*Manager, error) {
 	}, nil
 }
 
-// StoreDocument saves a JSON document in the database, marshalling its structure
+// StoreDocument saves a JSON document in the database, marshaling its structure
 // into key-value properties, representing the transversal property paths of the
 // original object.
 func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) (*StoreDocumentResult, error) {

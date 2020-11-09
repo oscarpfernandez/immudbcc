@@ -66,7 +66,7 @@ func (p PropertyHashList) Less(i, j int) bool {
 func (p PropertyHashList) Hash() string {
 	globalSum := sha256.New()
 	for _, hash := range p {
-		globalSum.Write(hash.Hash)
+		_, _ = globalSum.Write(hash.Hash)
 	}
 
 	sum := globalSum.Sum(nil)

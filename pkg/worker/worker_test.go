@@ -77,8 +77,10 @@ func TestWorker(t *testing.T) {
 				}
 
 				workers := NewWriteWorkerPool(test.numWorkers, mock)
-				workers.StartWorkers(context.Background())
-				workers.StartWorkers(context.Background()) // second start should take no effect.
+				err := workers.StartWorkers(context.Background())
+				assert.Nil(t, err)
+				err = workers.StartWorkers(context.Background()) // second start should take no effect.
+				assert.EqualError(t, err, "workers are already started")
 				defer func() {
 					workers.Stop()
 					workers.Stop() // double stop should no crash.

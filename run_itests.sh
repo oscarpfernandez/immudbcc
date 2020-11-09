@@ -12,6 +12,8 @@ function echoWarning() {
   echo -e "${NC}${YELLOW}${1}${NC}"
 }
 
+go build -ldflags "-s -w" -mod vendor -v github.com/oscarpfernandez/immudbcc/cmd/immudb-doc/...
+
 for filename in ./testdata/*.json; do
     # Write the JSON document in the database.
     echoWarning "*** Storing document: ${filename}"
@@ -19,7 +21,7 @@ for filename in ./testdata/*.json; do
 
     # Read the JSON document from the database.
     echoWarning "*** Retrieving document: ${filename}"
-    ./immudb-doc read  -output-json result.json
+    ./immudb-doc read -output-json result.json
 
     # Compare the retrieved JSON document with original one.
     diff <(jq -S . result.json) <(jq -S . "${filename}") > diff.txt
@@ -30,6 +32,7 @@ for filename in ./testdata/*.json; do
         echo "* Failed to Store and Retrieve Document."
         echo "* Payload did NOT matched (${filename})"
         echo "****************************************************************"
+        exit 1
     else
         echoOK "**************************************************************"
         echoOK "* Successfully Store and Retrieve Document."
@@ -37,4 +40,3 @@ for filename in ./testdata/*.json; do
         echoOK "**************************************************************"
     fi
 done
-

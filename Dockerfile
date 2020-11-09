@@ -1,19 +1,16 @@
 FROM golang:1.14
 
 RUN apt-get -y update && apt-get install -y jq
+RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.32.2
 
 ENV GO111MODULE=on
-ENV OS=linux
-ENV ARCH=amd64
+ENV GOOS=linux
+ENV CGOGOARCH=amd64
 ENV PRJ_SRC_PATH=/go/src/github.com/oscarpfernandez/imudbcc
 
 RUN mkdir -p ${PRJ_SRC_PATH}
 WORKDIR ${PRJ_SRC_PATH}
 COPY  . .
 
-RUN CGOGOARCH=${ARCH} GOOS=${OS} go build \
-    -ldflags "-s -w" \
-    -mod vendor -v \
-    ${PRJ_SRC_PATH}/cmd/immudb-doc/...
-
+RUN ./run_ci.sh
 RUN ./run_itests.sh

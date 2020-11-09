@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
@@ -13,12 +14,14 @@ import (
 )
 
 type ImmuClientMock struct {
+	wg *sync.Mutex
 	immuclient.ImmuClient
-	safeSetFn func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error)
-	setFn     func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
+	setFn func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
 }
 
 func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+	m.wg.Lock()
+	defer m.wg.Unlock()
 	return m.setFn(ctx, key, value)
 }
 
@@ -63,6 +66,7 @@ func TestWorker(t *testing.T) {
 			func() {
 				index := 0
 				mock := &ImmuClientMock{
+					wg: &sync.Mutex{},
 					setFn: func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
 						index++
 						if test.forceWriteError {

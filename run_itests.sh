@@ -14,11 +14,11 @@ function echoWarning() {
 
 for filename in ./testdata/*.json; do
     # Write the JSON document in the database.
-    echoWarning "--- Storing document: ${filename}"
+    echoWarning "*** Storing document: ${filename}"
     ./immudb-doc write -input-json "${filename}"
 
     # Read the JSON document from the database.
-    echoWarning "--- Retrieving document: ${filename}"
+    echoWarning "*** Retrieving document: ${filename}"
     ./immudb-doc read  -output-json result.json
 
     # Compare the retrieved JSON document with original one.

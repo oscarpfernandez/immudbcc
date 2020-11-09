@@ -65,6 +65,9 @@ func (w *WriteWorkerPool) StartWorkers(ctx context.Context) error {
 // * <-chan error: read channel collecting any errors that might occur during
 // the data ingestion.
 func (w *WriteWorkerPool) Write(properties doc.PropertyEntryList) (<-chan *doc.PropertyHash, <-chan bool, <-chan error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	go func() {
 		for _, propEntry := range properties {
 			pp := propEntry // lock value.

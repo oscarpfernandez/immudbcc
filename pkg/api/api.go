@@ -162,21 +162,6 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	}, nil
 }
 
-func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest) (uint64, error) {
-	objectManifestKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
-
-	documentValue, err := json.Marshal(om)
-	if err != nil {
-		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
-	}
-
-	idx, err := m.client.Set(ctx, objectManifestKey, documentValue)
-	if err != nil {
-		return 0, err
-	}
-	return idx.Index, nil
-}
-
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
 	docManifestKey := []byte("manifest/" + docId)
 
@@ -207,7 +192,8 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 			KeyURI: string(object.Key),
 			Value:  object.Value.Payload,
 		})
-		propertyHashList = append(propertyHashList, doc.CreatePropertyHash(object.Index, object.Key, object.Value.GetPayload()))
+		hash := doc.CreatePropertyHash(object.Index, object.Key, object.Value.GetPayload())
+		propertyHashList = append(propertyHashList, hash)
 	}
 
 	log.Print("Reconstructing JSON object...")
@@ -224,4 +210,19 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		Payload: payload,
 		Hash:    propertyHashList.Hash(),
 	}, nil
+}
+
+func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest) (uint64, error) {
+	objectManifestKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
+
+	documentValue, err := json.Marshal(om)
+	if err != nil {
+		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
+	}
+
+	idx, err := m.client.Set(ctx, objectManifestKey, documentValue)
+	if err != nil {
+		return 0, err
+	}
+	return idx.Index, nil
 }

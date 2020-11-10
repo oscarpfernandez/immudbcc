@@ -2,6 +2,7 @@ package doc
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
 	"testing"
 
@@ -20,7 +21,8 @@ var testCases = map[string]struct {
 			"name": "John",
 			"age": 30,
 			"city": "New York",
-			"active": true
+			"active": true,
+            "random": null
 		}`),
 		propertyList: PropertyEntryList{
 			{KeyURI: "objectID/name/string", Value: []byte("John")},
@@ -28,6 +30,7 @@ var testCases = map[string]struct {
 			{KeyURI: "objectID/index/float64", Value: Float64ToBinary(18446744073709551615)},
 			{KeyURI: "objectID/city/string", Value: []byte("New York")},
 			{KeyURI: "objectID/active/bool", Value: []byte(strconv.FormatBool(true))},
+			{KeyURI: "objectID/random/nil", Value: nil},
 		},
 	},
 	"Transforms nested objects #1": {
@@ -831,7 +834,7 @@ var testCases = map[string]struct {
 func TestCreatePropertyListFromRaw(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
-			gotList, err := GeneratePropertyList(test.prefix, bytes.NewReader(test.jsonPayload))
+			gotList, err := RawToPropertyList(test.prefix, bytes.NewReader(test.jsonPayload))
 			if err != nil {
 				t.Fatalf("unexpected error :%v", err)
 			}
@@ -841,8 +844,36 @@ func TestCreatePropertyListFromRaw(t *testing.T) {
 	}
 }
 
-func printPropertyEntryList(t *testing.T, pp PropertyEntryList) {
-	for _, elem := range pp {
-		t.Logf(`{ KeyURI: "%s", Value: []byte("%s") }`, elem.KeyURI, string(elem.Value))
+func TestCreatePropertyListFromRaw_BadReader(t *testing.T) {
+	_, err := RawToPropertyList("somePrefix", bytes.NewReader([]byte("")))
+	if err == nil {
+		t.Fatalf("expected error :%v", err)
+	}
+	assert.Equal(t, errors.New("unable to unmarshall payload: EOF"), err)
+}
+
+func TestRemoveLastElement(t *testing.T) {
+	tests := map[string]struct {
+		slice    []string
+		expSlice []string
+	}{
+		"Removed last": {
+			slice:    []string{"a", "b", "c", "d", "e"},
+			expSlice: []string{"a", "b", "c", "d"},
+		},
+		"Empty slice": {
+			slice:    []string{},
+			expSlice: []string{},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			orig := make([]string, len(test.slice))
+			copy(orig, test.slice)
+			removeLastElement(&orig)
+
+			assert.Equal(t, test.expSlice, orig)
+		})
 	}
 }

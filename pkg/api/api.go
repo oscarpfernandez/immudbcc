@@ -40,16 +40,28 @@ func (c *Config) WithNumberWorkers(numWorkers int) *Config {
 	return c
 }
 
-// WithClientOptions set the client options used to initialise the ImmuDB client.
+// WithClientOptions set the client options used to initialize the ImmuDB client.
 func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	c.ClientOptions = options
 	return c
 }
 
+type ObjectManifest struct {
+	ObjectID string   `json:"id"`
+	Indexes  []uint64 `json:"indexes"`
+	Hash     string   `json:"hash"`
+}
+
 type StoreDocumentResult struct {
+	Index uint64
+	Hash  string
+}
+
+type GetDocumentResult struct {
+	ID      string
 	Index   uint64
-	Hash    []byte
-	HashEnc []byte
+	Payload []byte
+	Hash    string
 }
 
 // Manager represents the object required to use the API.
@@ -73,11 +85,11 @@ func New(c *Config) (*Manager, error) {
 	}, nil
 }
 
-// StoreDocument saves a JSON document in the database, marshalling its structure
+// StoreDocument saves a JSON document in the database, marshaling its structure
 // into key-value properties, representing the transversal property paths of the
 // original object.
 func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) (*StoreDocumentResult, error) {
-	entryList, err := doc.GeneratePropertyList(docID, r)
+	entryList, err := doc.RawToPropertyList(docID, r)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +128,10 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 					}
 				}
 			case <-shutdown:
+				// The goroutines were shutdown.
 				return
 			case <-ctx.Done():
+				// Execution context expired.
 				return
 			}
 		}
@@ -129,87 +143,86 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 
 	sort.Sort(resultHash)
 
-	indexes := resultHash.Indexes()
-	hash := resultHash.Hash()
-	objectManifest := &doc.ObjectManifest{
-		ObjectID:        docID,
-		PropertyIndexes: indexes,
-		ObjectHash:      hash,
+	manifest := &ObjectManifest{
+		ObjectID: docID,
+		Indexes:  resultHash.Indexes(),
+		Hash:     resultHash.Hash(),
 	}
 
-	index, err := m.writeDocumentManifest(ctx, objectManifest)
+	index, err := m.writeDocumentManifest(ctx, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store manifes of object '%s': %v", docID, err)
 	}
 
+	log.Printf("Object Write succesfull: index(%d) - keyID(%s)", index, docID)
+
 	return &StoreDocumentResult{
 		Index: index,
-		Hash:  objectManifest.ObjectHash,
+		Hash:  manifest.Hash,
 	}, nil
 }
 
-func (m *Manager) writeDocumentManifest(ctx context.Context, om *doc.ObjectManifest) (uint64, error) {
-	documentKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
+func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
+	docManifestKey := []byte("manifest/" + docId)
+
+	log.Printf("Reading object manifest: DocumentID(%s)", docManifestKey)
+	docManifestItem, err := m.client.Get(ctx, docManifestKey)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Object manifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
+
+	objectManifest := &ObjectManifest{}
+	if err := json.Unmarshal(docManifestItem.Value.GetPayload(), objectManifest); err != nil {
+		fmt.Printf("unmarshal failed")
+		return nil, err
+	}
+	log.Printf("Object manifest: Key(%s) - Indexes(%v)", string(docManifestItem.Key), objectManifest.Indexes)
+
+	propertyList := doc.PropertyEntryList{}
+	propertyHashList := doc.PropertyHashList{}
+	for _, propertyIndex := range objectManifest.Indexes {
+		object, err := m.client.ByIndex(ctx, propertyIndex)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Reading property: Index(%d) - Key(%s)", object.Index, object.Key)
+
+		propertyList = append(propertyList, doc.PropertyEntry{
+			KeyURI: string(object.Key),
+			Value:  object.Value.Payload,
+		})
+		hash := doc.CreatePropertyHash(object.Index, object.Key, object.Value.GetPayload())
+		propertyHashList = append(propertyHashList, hash)
+	}
+
+	log.Print("Reconstructing JSON object...")
+	rawObject := doc.PropertyListToRaw(propertyList)
+	payload, err := json.MarshalIndent(rawObject, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Object Read succesfull: index(%d) - keyID(%s)", docManifestItem.Index, string(docManifestItem.Key))
+
+	return &GetDocumentResult{
+		ID:      docId,
+		Index:   docManifestItem.Index,
+		Payload: payload,
+		Hash:    propertyHashList.Hash(),
+	}, nil
+}
+
+func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest) (uint64, error) {
+	objectManifestKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
 
 	documentValue, err := json.Marshal(om)
 	if err != nil {
 		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
 	}
 
-	idx, err := m.client.Set(ctx, documentKey, documentValue)
+	idx, err := m.client.Set(ctx, objectManifestKey, documentValue)
 	if err != nil {
 		return 0, err
 	}
 	return idx.Index, nil
-}
-
-type GetDocumentResult struct {
-	ID      string
-	Index   uint64
-	Payload []byte
-	Hash    []byte
-}
-
-func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
-	objectManifestKey := []byte("manifest/" + docId)
-
-	log.Printf("Reading object manifest: documentID(%s)", objectManifestKey)
-	item, err := m.client.Get(ctx, objectManifestKey)
-	if err != nil {
-		return nil, err
-	}
-
-	objectManifest := &doc.ObjectManifest{}
-	if err := json.Unmarshal(item.Value.GetPayload(), objectManifest); err != nil {
-		fmt.Printf("unmarshal failed")
-		return nil, err
-	}
-
-	propertyList := doc.PropertyEntryList{}
-	for _, propertyIndex := range objectManifest.PropertyIndexes {
-		object, err := m.client.ByIndex(ctx, propertyIndex)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("Reading property: index[%d] -> key[%s]", object.Index, object.Key)
-
-		propertyList = append(propertyList, doc.PropertyEntry{
-			KeyURI: string(object.Key),
-			Value:  object.Value.Payload,
-		})
-	}
-
-	log.Print("Reconstructing JSON object.")
-	rawObject := doc.PropertyListToRaw(propertyList)
-	payload, err := json.MarshalIndent(rawObject, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	return &GetDocumentResult{
-		ID:      docId,
-		Index:   item.Index,
-		Payload: payload,
-		Hash:    nil,
-	}, nil
 }

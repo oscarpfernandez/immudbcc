@@ -1,9 +1,14 @@
 package doc
 
 import (
+	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 )
 
+// PropertyListToRaw converts a list of PropertyEntry to the raw original
+// document object.
 func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	sort.Sort(properties)
 
@@ -32,6 +37,10 @@ func PropertyListToRaw(properties PropertyEntryList) interface{} {
 	return rawObject
 }
 
+// propertyListToRawMap recursively analyzes a PropertyEntry's Key, building
+// the equivalent structure in the raw document object. This cases deals with
+// the case where the current root element in the path being analyzed consists
+// of a Map.
 func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
@@ -73,6 +82,10 @@ func propertyListToRawMap(parentObject interface{}, curKeyIndex int, keys []stri
 	}
 }
 
+// propertyListToRawArrays recursively analyzes a PropertyEntry's Key, building
+// the equivalent structure in the raw document object. This cases deals with
+// the case where the current root element in the path being analyzed consists
+// of an Array.
 func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyIndex int, keys []string, valueType string, value []byte) {
 	// Leaf object
 	if len(keys) == curKeyIndex+1 {
@@ -110,4 +123,28 @@ func propertyListToRawArrays(curArrayIndex int, parentArray interface{}, curKeyI
 			propertyListToRawMap(object[curArrayIndex], curKeyIndex+1, keys, valueType, value)
 		}
 	}
+}
+
+var arrayRegExp = regexp.MustCompile(`^\[\d+\.\d+]$`)
+
+// hasArrayFormat checks if the current node of the path describes and array element.
+func hasArrayFormat(s string) bool {
+	// Checks for Arrays definitions of the format "[%d.%d]" where the first
+	// parameter describes the current index and the second the total capacity.
+	return arrayRegExp.MatchString(s)
+}
+
+// splitArrayFormat given a current array element, returns the associates index
+// and total capacity.
+func splitArrayFormat(s string) (index int, capacity int) {
+	if !hasArrayFormat(s) {
+		panic("not array format")
+	}
+
+	indexCapStr := strings.Trim(s, "[]")
+	valuesStr := strings.Split(indexCapStr, ".")
+	index, _ = strconv.Atoi(valuesStr[0])
+	capacity, _ = strconv.Atoi(valuesStr[1])
+
+	return index, capacity
 }

@@ -834,7 +834,7 @@ var testCases = map[string]struct {
 func TestCreatePropertyListFromRaw(t *testing.T) {
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
-			gotList, err := GeneratePropertyList(test.prefix, bytes.NewReader(test.jsonPayload))
+			gotList, err := RawToPropertyList(test.prefix, bytes.NewReader(test.jsonPayload))
 			if err != nil {
 				t.Fatalf("unexpected error :%v", err)
 			}
@@ -845,7 +845,7 @@ func TestCreatePropertyListFromRaw(t *testing.T) {
 }
 
 func TestCreatePropertyListFromRaw_BadReader(t *testing.T) {
-	_, err := GeneratePropertyList("somePrefix", bytes.NewReader([]byte("")))
+	_, err := RawToPropertyList("somePrefix", bytes.NewReader([]byte("")))
 	if err == nil {
 		t.Fatalf("expected error :%v", err)
 	}

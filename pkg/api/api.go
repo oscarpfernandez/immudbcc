@@ -89,7 +89,7 @@ func New(c *Config) (*Manager, error) {
 // into key-value properties, representing the transversal property paths of the
 // original object.
 func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) (*StoreDocumentResult, error) {
-	entryList, err := doc.GeneratePropertyList(docID, r)
+	entryList, err := doc.RawToPropertyList(docID, r)
 	if err != nil {
 		return nil, err
 	}

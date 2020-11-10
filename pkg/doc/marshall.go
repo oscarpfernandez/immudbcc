@@ -7,9 +7,9 @@ import (
 	"strconv"
 )
 
-// GeneratePropertyList creates the property list for given document provided
+// RawToPropertyList creates the property list for given document provided
 // a reader to the raw payload.
-func GeneratePropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
+func RawToPropertyList(docID string, r io.Reader) (PropertyEntryList, error) {
 	var docMap interface{}
 	if err := json.NewDecoder(r).Decode(&docMap); err != nil {
 		return nil, fmt.Errorf("unable to unmarshall payload: %v", err)

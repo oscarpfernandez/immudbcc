@@ -23,6 +23,8 @@ In developing your solution, you'll have to make decisions that are related to:
 
 # 2. Solution Proposal
 
+## 2.1 Object Insertion.
+
 The main solution revolves around the observation that to properly leverage ImmuDB natural features, consists in designing
 a solution capable of marshalling generic JSON objects, and storing each object's property as a Key-Value entry.
 
@@ -108,12 +110,9 @@ The API would return as confirmation of the commit, the `index` of the object co
 
 ---
 
-# 3. Algorithm description.
+So, let's frame the problem more formally.
 
-## 3.1 Object Insertion.
-
-So, considering the problem a bit more generically, for any given object:
-
+For a given JSON document object:
 * Perform the marshaling of the object's tree:
     * Each path represents the tree's depth-first transversal.
     * Each path is prefixed by the assigned ObjectID.

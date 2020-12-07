@@ -17,11 +17,15 @@ go build -ldflags "-s -w" -mod vendor -v github.com/oscarpfernandez/immudbcc/cmd
 for filename in ./testdata/*.json; do
     # Write the JSON document in the database.
     echoWarning "*** Storing document: ${filename}"
-    ./immudb-doc write -input-json "${filename}"
+
+    # Generate random document ID.
+    docID=$(uuidgen)
+
+    ./immudb-doc write -doc-id "${docID}" -input-json "${filename}"
 
     # Read the JSON document from the database.
     echoWarning "*** Retrieving document: ${filename}"
-    ./immudb-doc read -output-json result.json
+    ./immudb-doc read -doc-id "${docID}" -output-json result.json
 
     # Compare the retrieved JSON document with original one.
     diff <(jq -S . result.json) <(jq -S . "${filename}") > diff.txt

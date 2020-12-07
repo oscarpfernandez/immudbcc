@@ -7,9 +7,7 @@ then
     golangci-lint run --modules-download-mode=vendor ./...
 else
     go vet -mod=vendor ./...
-
 fi
 
 echo "--- Running Tests"
 go test -mod=vendor -failfast -v --race -covermode=atomic ./...
-

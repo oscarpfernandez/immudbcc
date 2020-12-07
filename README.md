@@ -116,24 +116,27 @@ For a given JSON document object:
 * Perform the marshaling of the object's tree:
     * Each path represents the tree's depth-first transversal.
     * Each path is prefixed by the assigned ObjectID.
-    * Each path is suffixed by the basic type of the associated value.
-      According to JSON, `string`, `float64`, `bool` and `null` are supported).
-* The previous set X of Key-Value, or more precisely Path-Values can be stored concurrently stored in the database:
+    * Each path is suffixed by the basic type of the associated Value.
+      (According to JSON, `string`, `float64`, `bool` and `null` are supported).
+    * The end result is a set of Key-Value pairs, where the Key is the associated path aforementioned, and the Value is
+    the property associated value.
+
+* The previous set X of Key-Value pairs, can be concurrently stored in the database:
     * For a given `n-th` Key-Value, insert it in the database, storing in memory the resulting `n-th` Index and Hash.
         ```
-        indexHashPair  = [ (index_1,hash_0), (index_1,hash_1), ..., (index_n,hash_n) ]
+        indexHashPair  = [ (index_0,hash_0), (index_1,hash_1), ..., (index_n,hash_n) ]
         ```
     * Perform the insertions for each element of X.
-    * Sort the `indexHashPair` list, using the `index` as a `sorting criteria`. This ensures that the insertion order (given
-    that it is concurrent) has no influence in subsequent calculations (e.g. global hash).
+    * Sort the `indexHashPair` list, using the `index` as a `sorting criteria`. This ensures that the insertion order
+    (given that it is concurrent) has no influence in subsequent calculations (i.e. global hash).
 * Finally, when all the properties are inserted, we can then mark this insertion as successful by inserting the manifest:
     * The manifest is essentially a JSON payload containing the object's ID, the list of property indexes that compose
     it, and the properties' global hash.
         ```
         {
            "id":      "objectID",
-           "hash":    indexHashPair.Hash(),    // [hash_0,  hash_1,  ..., hash_n] 
-           "indexes": indexHashPair.Indexes()  // [index_0, index_1, ..., index_n]
+           "hash":    indexHashPair.Hash(),    // GlobalHash(hash_0,  hash_1,  ..., hash_n)
+           "indexes": indexHashPair.Indexes()  // List=[index_a, index_b, ..., index_n]
         }
         ```
     * Store the manifest in the database:
@@ -142,3 +145,20 @@ For a given JSON document object:
         ```
     * Return the final `index` and the `hash` of the object's manifest. These values in combination with the objectID are
     the minimal elements required to retrieve the object.
+
+# 3. How to test and build the project.
+
+To execute the linters and unit tests:
+```
+./run_ci.sh
+```
+
+To execute integration tests:
+```
+./run_itests.sh
+```
+
+To execute the previous commands in a Docker:
+```
+docker build -t immudb-cc -f Dockerfile .
+```

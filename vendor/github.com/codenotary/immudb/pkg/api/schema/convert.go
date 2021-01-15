@@ -18,13 +18,7 @@ package schema
 
 import (
 	"github.com/golang/protobuf/proto"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"strings"
-)
-
-var (
-	ErrUnexpectedNotStructuredValue = status.New(codes.FailedPrecondition, "unexpected not structured value encountered").Err()
 )
 
 // Merge return a marshalled content object
@@ -41,28 +35,21 @@ func Merge(payload []byte, timestamp uint64) (merged []byte, err error) {
 func (item *Item) ToSItem() (*StructuredItem, error) {
 	c := Content{}
 	err := proto.Unmarshal(item.Value, &c)
-	if err != nil {
-		return nil, err
-	}
-
 	return &StructuredItem{
 		Index: item.Index,
 		Key:   item.Key,
 		Value: &c,
-	}, nil
+	}, err
 }
 
 // ToItem return Item from the receiver
 func (item *StructuredItem) ToItem() (*Item, error) {
 	m, err := Merge(item.Value.Payload, item.Value.Timestamp)
-	if err != nil {
-		return nil, err
-	}
 	return &Item{
 		Key:   item.Key,
 		Value: m,
 		Index: item.Index,
-	}, nil
+	}, err
 }
 
 // ToSafeSItem return a SafeStructuredItem from the receiver
@@ -88,16 +75,32 @@ func (list *ItemList) ToSItemList() (*StructuredItemList, error) {
 	return slist, nil
 }
 
+// ToZSItemList return a ZStructuredItemList from the receiver
+func (list *ZItemList) ToZSItemList() (*ZStructuredItemList, error) {
+	slist := &ZStructuredItemList{}
+	for _, item := range list.Items {
+		i, err := item.Item.ToSItem()
+		if err != nil {
+			return nil, err
+		}
+		zi := &ZStructuredItem{
+			Item:          i,
+			Score:         item.Score,
+			CurrentOffset: item.CurrentOffset,
+			Index:         item.Index,
+		}
+		slist.Items = append(slist.Items, zi)
+	}
+	return slist, nil
+}
+
 // ToKV return a KeyValue from the receiver
 func (skv *StructuredKeyValue) ToKV() (*KeyValue, error) {
 	m, err := proto.Marshal(skv.Value)
-	if err != nil {
-		return nil, err
-	}
 	return &KeyValue{
 		Key:   skv.Key,
 		Value: m,
-	}, nil
+	}, err
 }
 
 // ToKVList return a KVList from the receiver

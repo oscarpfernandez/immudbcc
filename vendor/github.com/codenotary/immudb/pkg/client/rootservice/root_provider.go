@@ -14,34 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package rootservice
 
 import (
+	"context"
 	"github.com/codenotary/immudb/pkg/api/schema"
-	"github.com/codenotary/immudb/pkg/signer"
-	"github.com/golang/protobuf/proto"
 )
 
-type RootSigner interface {
-	Sign(root *schema.Root) (*schema.Root, error)
-}
-
-type rootSigner struct {
-	Signer signer.Signer
-}
-
-func NewRootSigner(signer signer.Signer) *rootSigner {
-	return &rootSigner{
-		Signer: signer,
-	}
-}
-
-func (rs *rootSigner) Sign(root *schema.Root) (*schema.Root, error) {
-	m, err := proto.Marshal(root.Payload)
-	if err != nil {
-		return nil, err
-	}
-
-	root.Signature.Signature, root.Signature.PublicKey, err = rs.Signer.Sign(m)
-	return root, err
+type RootProvider interface {
+	CurrentRoot(ctx context.Context) (*schema.Root, error)
 }

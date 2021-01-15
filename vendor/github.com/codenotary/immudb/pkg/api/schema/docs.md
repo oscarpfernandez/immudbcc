@@ -13,6 +13,7 @@
     - [Database](#immudb.schema.Database)
     - [DatabaseListResponse](#immudb.schema.DatabaseListResponse)
     - [HealthResponse](#immudb.schema.HealthResponse)
+    - [HistoryOptions](#immudb.schema.HistoryOptions)
     - [IScanOptions](#immudb.schema.IScanOptions)
     - [InclusionProof](#immudb.schema.InclusionProof)
     - [Index](#immudb.schema.Index)
@@ -29,6 +30,8 @@
     - [LoginResponse](#immudb.schema.LoginResponse)
     - [MTLSConfig](#immudb.schema.MTLSConfig)
     - [Node](#immudb.schema.Node)
+    - [Op](#immudb.schema.Op)
+    - [Ops](#immudb.schema.Ops)
     - [Page](#immudb.schema.Page)
     - [Permission](#immudb.schema.Permission)
     - [Proof](#immudb.schema.Proof)
@@ -46,6 +49,7 @@
     - [SafeStructuredItem](#immudb.schema.SafeStructuredItem)
     - [SafeZAddOptions](#immudb.schema.SafeZAddOptions)
     - [ScanOptions](#immudb.schema.ScanOptions)
+    - [Score](#immudb.schema.Score)
     - [SetActiveUserRequest](#immudb.schema.SetActiveUserRequest)
     - [Signature](#immudb.schema.Signature)
     - [StructuredItem](#immudb.schema.StructuredItem)
@@ -57,7 +61,11 @@
     - [UserList](#immudb.schema.UserList)
     - [UserRequest](#immudb.schema.UserRequest)
     - [ZAddOptions](#immudb.schema.ZAddOptions)
+    - [ZItem](#immudb.schema.ZItem)
+    - [ZItemList](#immudb.schema.ZItemList)
     - [ZScanOptions](#immudb.schema.ZScanOptions)
+    - [ZStructuredItem](#immudb.schema.ZStructuredItem)
+    - [ZStructuredItemList](#immudb.schema.ZStructuredItemList)
 
     - [PermissionAction](#immudb.schema.PermissionAction)
 
@@ -217,6 +225,24 @@
 | ----- | ---- | ----- | ----------- |
 | status | [bool](#bool) |  |  |
 | version | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.HistoryOptions"></a>
+
+### HistoryOptions
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [bytes](#bytes) |  |  |
+| offset | [uint64](#uint64) |  |  |
+| limit | [uint64](#uint64) |  |  |
+| reverse | [bool](#bool) |  |  |
 
 
 
@@ -478,6 +504,38 @@
 
 
 
+<a name="immudb.schema.Op"></a>
+
+### Op
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| KVs | [KeyValue](#immudb.schema.KeyValue) |  |  |
+| ZOpts | [ZAddOptions](#immudb.schema.ZAddOptions) |  |  |
+| ROpts | [ReferenceOptions](#immudb.schema.ReferenceOptions) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.Ops"></a>
+
+### Ops
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| Operations | [Op](#immudb.schema.Op) | repeated |  |
+
+
+
+
+
+
 <a name="immudb.schema.Page"></a>
 
 ### Page
@@ -540,6 +598,7 @@
 | ----- | ---- | ----- | ----------- |
 | reference | [bytes](#bytes) |  |  |
 | key | [bytes](#bytes) |  |  |
+| index | [Index](#immudb.schema.Index) |  |  |
 
 
 
@@ -757,6 +816,21 @@
 
 
 
+<a name="immudb.schema.Score"></a>
+
+### Score
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| score | [double](#double) |  |  |
+
+
+
+
+
+
 <a name="immudb.schema.SetActiveUserRequest"></a>
 
 ### SetActiveUserRequest
@@ -927,8 +1001,42 @@ Because it is not purely about the storage size, but also use cases.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | set | [bytes](#bytes) |  |  |
-| score | [double](#double) |  |  |
+| score | [Score](#immudb.schema.Score) |  |  |
 | key | [bytes](#bytes) |  |  |
+| index | [Index](#immudb.schema.Index) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.ZItem"></a>
+
+### ZItem
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| item | [Item](#immudb.schema.Item) |  |  |
+| score | [double](#double) |  |  |
+| currentOffset | [bytes](#bytes) |  |  |
+| index | [uint64](#uint64) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.ZItemList"></a>
+
+### ZItemList
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| items | [ZItem](#immudb.schema.ZItem) | repeated |  |
 
 
 
@@ -947,6 +1055,41 @@ Because it is not purely about the storage size, but also use cases.
 | offset | [bytes](#bytes) |  |  |
 | limit | [uint64](#uint64) |  |  |
 | reverse | [bool](#bool) |  |  |
+| min | [Score](#immudb.schema.Score) |  |  |
+| max | [Score](#immudb.schema.Score) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.ZStructuredItem"></a>
+
+### ZStructuredItem
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| item | [StructuredItem](#immudb.schema.StructuredItem) |  |  |
+| score | [double](#double) |  |  |
+| currentOffset | [bytes](#bytes) |  |  |
+| index | [uint64](#uint64) |  |  |
+
+
+
+
+
+
+<a name="immudb.schema.ZStructuredItemList"></a>
+
+### ZStructuredItemList
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| items | [ZStructuredItem](#immudb.schema.ZStructuredItem) | repeated |  |
 
 
 
@@ -988,37 +1131,29 @@ IMPORTANT: All get and safeget functions return base64-encoded keys and values, 
 | Login | [LoginRequest](#immudb.schema.LoginRequest) | [LoginResponse](#immudb.schema.LoginResponse) |  |
 | Logout | [.google.protobuf.Empty](#google.protobuf.Empty) | [.google.protobuf.Empty](#google.protobuf.Empty) |  |
 | Set | [KeyValue](#immudb.schema.KeyValue) | [Index](#immudb.schema.Index) |  |
-| SetSV | [StructuredKeyValue](#immudb.schema.StructuredKeyValue) | [Index](#immudb.schema.Index) |  |
 | SafeSet | [SafeSetOptions](#immudb.schema.SafeSetOptions) | [Proof](#immudb.schema.Proof) |  |
-| SafeSetSV | [SafeSetSVOptions](#immudb.schema.SafeSetSVOptions) | [Proof](#immudb.schema.Proof) |  |
 | Get | [Key](#immudb.schema.Key) | [Item](#immudb.schema.Item) |  |
-| GetSV | [Key](#immudb.schema.Key) | [StructuredItem](#immudb.schema.StructuredItem) |  |
 | SafeGet | [SafeGetOptions](#immudb.schema.SafeGetOptions) | [SafeItem](#immudb.schema.SafeItem) |  |
-| SafeGetSV | [SafeGetOptions](#immudb.schema.SafeGetOptions) | [SafeStructuredItem](#immudb.schema.SafeStructuredItem) |  |
 | SetBatch | [KVList](#immudb.schema.KVList) | [Index](#immudb.schema.Index) |  |
-| SetBatchSV | [SKVList](#immudb.schema.SKVList) | [Index](#immudb.schema.Index) |  |
 | GetBatch | [KeyList](#immudb.schema.KeyList) | [ItemList](#immudb.schema.ItemList) |  |
-| GetBatchSV | [KeyList](#immudb.schema.KeyList) | [StructuredItemList](#immudb.schema.StructuredItemList) |  |
+| ExecAllOps | [Ops](#immudb.schema.Ops) | [Index](#immudb.schema.Index) |  |
 | Scan | [ScanOptions](#immudb.schema.ScanOptions) | [ItemList](#immudb.schema.ItemList) |  |
-| ScanSV | [ScanOptions](#immudb.schema.ScanOptions) | [StructuredItemList](#immudb.schema.StructuredItemList) |  |
 | Count | [KeyPrefix](#immudb.schema.KeyPrefix) | [ItemsCount](#immudb.schema.ItemsCount) |  |
+| CountAll | [.google.protobuf.Empty](#google.protobuf.Empty) | [ItemsCount](#immudb.schema.ItemsCount) |  |
 | CurrentRoot | [.google.protobuf.Empty](#google.protobuf.Empty) | [Root](#immudb.schema.Root) |  |
 | Inclusion | [Index](#immudb.schema.Index) | [InclusionProof](#immudb.schema.InclusionProof) |  |
 | Consistency | [Index](#immudb.schema.Index) | [ConsistencyProof](#immudb.schema.ConsistencyProof) |  |
 | ByIndex | [Index](#immudb.schema.Index) | [Item](#immudb.schema.Item) |  |
 | BySafeIndex | [SafeIndexOptions](#immudb.schema.SafeIndexOptions) | [SafeItem](#immudb.schema.SafeItem) |  |
-| ByIndexSV | [Index](#immudb.schema.Index) | [StructuredItem](#immudb.schema.StructuredItem) |  |
-| History | [Key](#immudb.schema.Key) | [ItemList](#immudb.schema.ItemList) |  |
-| HistorySV | [Key](#immudb.schema.Key) | [StructuredItemList](#immudb.schema.StructuredItemList) |  |
+| History | [HistoryOptions](#immudb.schema.HistoryOptions) | [ItemList](#immudb.schema.ItemList) |  |
 | Health | [.google.protobuf.Empty](#google.protobuf.Empty) | [HealthResponse](#immudb.schema.HealthResponse) |  |
 | Reference | [ReferenceOptions](#immudb.schema.ReferenceOptions) | [Index](#immudb.schema.Index) |  |
+| GetReference | [Key](#immudb.schema.Key) | [Item](#immudb.schema.Item) |  |
 | SafeReference | [SafeReferenceOptions](#immudb.schema.SafeReferenceOptions) | [Proof](#immudb.schema.Proof) |  |
 | ZAdd | [ZAddOptions](#immudb.schema.ZAddOptions) | [Index](#immudb.schema.Index) |  |
-| ZScan | [ZScanOptions](#immudb.schema.ZScanOptions) | [ItemList](#immudb.schema.ItemList) |  |
-| ZScanSV | [ZScanOptions](#immudb.schema.ZScanOptions) | [StructuredItemList](#immudb.schema.StructuredItemList) |  |
+| ZScan | [ZScanOptions](#immudb.schema.ZScanOptions) | [ZItemList](#immudb.schema.ZItemList) |  |
 | SafeZAdd | [SafeZAddOptions](#immudb.schema.SafeZAddOptions) | [Proof](#immudb.schema.Proof) |  |
 | IScan | [IScanOptions](#immudb.schema.IScanOptions) | [Page](#immudb.schema.Page) |  |
-| IScanSV | [IScanOptions](#immudb.schema.IScanOptions) | [SPage](#immudb.schema.SPage) |  |
 | Dump | [.google.protobuf.Empty](#google.protobuf.Empty) | [.pb.KVList](#pb.KVList) stream |  |
 | CreateDatabase | [Database](#immudb.schema.Database) | [.google.protobuf.Empty](#google.protobuf.Empty) | todo(joe-dz): Enable restore when the feature is required again 	rpc Restore(stream pb.KVList) returns (ItemsCount) { 		option (google.api.http) = { 			post: &#34;/v1/immurestproxy/restore&#34; 			body: &#34;*&#34; 		}; 	} |
 | UseDatabase | [Database](#immudb.schema.Database) | [UseDatabaseReply](#immudb.schema.UseDatabaseReply) |  |

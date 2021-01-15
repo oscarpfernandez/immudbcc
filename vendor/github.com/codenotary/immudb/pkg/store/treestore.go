@@ -95,14 +95,14 @@ func decodeRefTreeKey(rtk []byte) ([sha256.Size]byte, []byte, error) {
 	return hArray, reference, nil
 }
 
-func wrapValueWithTS(v []byte, ts uint64) []byte {
+func WrapValueWithTS(v []byte, ts uint64) []byte {
 	tsv := make([]byte, len(v)+8)
 	binary.BigEndian.PutUint64(tsv, ts)
 	copy(tsv[8:], v)
 	return tsv
 }
 
-func unwrapValueWithTS(tsv []byte) ([]byte, uint64) {
+func UnwrapValueWithTS(tsv []byte) ([]byte, uint64) {
 	v := make([]byte, len(tsv)-8)
 	ts := binary.BigEndian.Uint64(tsv[:8])
 	copy(v, tsv[8:])
@@ -297,6 +297,14 @@ func (t *treeStore) NewBatch(kvPairs *schema.KVList) []*treeStoreEntry {
 	return batch
 }
 
+// NewOpsTsRange return the initial ts to be used inside batch ops
+// It's thread-safe.
+func (t *treeStore) NewOpsTsRange(ops *schema.Ops) uint64 {
+	size := uint64(len(ops.Operations))
+	lease := atomic.AddUint64(&t.ts, size)
+	return lease - size
+}
+
 // Commit enqueues the given entry to be included in the merkletree.
 // The value of _entry_ might change once Discard() or Commit() is called,
 // so it must not be used later.
@@ -367,8 +375,7 @@ func (t *treeStore) flush() {
 			}
 			t.lastFlushed = t.w
 		}
-		//workaround possible badger bug
-		//Commit cannot be called with managedDB=true. Use CommitAt.
+
 		if !emptyCaches {
 			err := wb.Flush()
 			if err != nil {
@@ -384,7 +391,6 @@ func (t *treeStore) flush() {
 			continue
 		}
 		emptyCaches = false
-		// fmt.Printf("Flushing [l=%d, head=%d, tail=%d] from %d to (%d-1)\n", l, c.Head(), c.Tail(), t.cPos[l], tail)
 		if !t.flushLeaves && l == 0 {
 			continue
 		}
@@ -396,7 +402,6 @@ func (t *treeStore) flush() {
 				if l == 0 {
 					value = t.rcache.Get(i).([]byte)
 				}
-				// fmt.Printf("Storing [l=%d, i=%d]\n", l, i)
 				entry := badger.Entry{
 					Key:      treeKey(uint8(l), i),
 					Value:    value,

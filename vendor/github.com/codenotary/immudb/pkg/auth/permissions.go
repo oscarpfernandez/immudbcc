@@ -33,12 +33,11 @@ var methodsPermissions = map[string][]uint32{
 	// readwrite methods
 	"Set":           {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"Get":           {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
-	"SetSV":         {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"SafeSet":       {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"SafeGet":       {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
-	"SafeSetSV":     {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"SetBatch":      {PermissionSysAdmin, PermissionAdmin, PermissionRW},
-	"SetBatchSV":    {PermissionSysAdmin, PermissionAdmin, PermissionRW},
+	"GetBatch":      {PermissionSysAdmin, PermissionAdmin, PermissionRW},
+	"ExecAllOps":    {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"Reference":     {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"SafeReference": {PermissionSysAdmin, PermissionAdmin, PermissionRW},
 	"ZAdd":          {PermissionSysAdmin, PermissionAdmin, PermissionRW},
@@ -50,7 +49,11 @@ var methodsPermissions = map[string][]uint32{
 	"History":       {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
 	"ByIndex":       {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
 	"Count":         {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
+	"CountAll":      {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
 	"DatabaseList":  {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
+	"Consistency":   {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
+	"Inclusion":     {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
+	"CurrentRoot":   {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
 
 	// admin methods
 	"ListUsers":        {PermissionSysAdmin, PermissionAdmin},
@@ -64,8 +67,6 @@ var methodsPermissions = map[string][]uint32{
 	"CreateDatabase":   {PermissionSysAdmin},
 	"PrintTree":        {PermissionSysAdmin},
 	"Dump":             {PermissionSysAdmin, PermissionAdmin},
-	"Consistency":      {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
-	"CurrentRoot":      {PermissionSysAdmin, PermissionAdmin, PermissionRW, PermissionR},
 }
 
 //HasPermissionForMethod checks if userPermission can access method name

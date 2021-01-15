@@ -99,10 +99,23 @@ message KeyValue {
 	bytes value = 2;
 }
 
+message Op{
+	oneof operation {
+		KeyValue KVs = 1;
+		ZAddOptions ZOpts = 2;
+		ReferenceOptions ROpts = 3;
+	}
+}
+
+message Ops{
+	repeated Op Operations = 1;
+}
+
 message StructuredKeyValue {
 	bytes key = 1;
 	Content value = 2;
 }
+
 message Content {
 	uint64 timestamp = 1;
 	bytes payload = 2;
@@ -140,9 +153,32 @@ message ItemList {
 	repeated Item items = 1;
 }
 
+message ZItem {
+	Item item = 1;
+	double score = 2;
+	bytes currentOffset = 3;
+	uint64 index = 4;
+}
+
+message ZItemList {
+	repeated ZItem items = 1;
+}
+
 message StructuredItemList {
 	repeated StructuredItem items = 1;
 }
+
+message ZStructuredItemList {
+	repeated ZStructuredItem items = 1;
+}
+
+message ZStructuredItem {
+	StructuredItem item = 1;
+	double score = 2;
+	bytes currentOffset = 3;
+	uint64 index = 4;
+}
+
 
 message Root {
 	RootIndex payload = 1;
@@ -238,17 +274,14 @@ message HealthResponse {
 message ReferenceOptions {
 	bytes reference = 1;
 	bytes key = 2;
+	Index index = 3;
 }
 
-/*
-Why use double as score type?
-Because it is not purely about the storage size, but also use cases.
-64-bit floating point double gives a lot of flexibility and dynamic range, at the expense of having only 53-bits of integer.
-*/
 message ZAddOptions {
 	bytes set = 1;
-	double score = 2;
+	Score score = 2;
 	bytes key = 3;
+	Index index = 4;
 }
 
 message ZScanOptions {
@@ -256,6 +289,12 @@ message ZScanOptions {
 	bytes offset = 2;
 	uint64 limit = 3;
 	bool reverse = 4;
+	Score min = 5;
+	Score max = 6;
+}
+
+message Score {
+	double score = 1;
 }
 
 message IScanOptions {
@@ -272,6 +311,13 @@ message SPage {
 	repeated StructuredItem items = 1;
 	uint64 pageNum  = 2;
 	bool more = 3;
+}
+
+message HistoryOptions {
+	bytes key = 1;
+	uint64 offset = 2;
+	uint64 limit = 3;
+	bool reverse = 4;
 }
 
 message SafeZAddOptions {
@@ -386,8 +432,6 @@ service ImmuService {
 		};
 	};
 
-	rpc SetSV (StructuredKeyValue) returns (Index){};
-
 	rpc SafeSet(SafeSetOptions) returns (Proof){
 		option (google.api.http) = {
 			post: "/v1/immurestproxy/item/safe"
@@ -395,15 +439,11 @@ service ImmuService {
 		};
 	}
 
-	rpc SafeSetSV(SafeSetSVOptions) returns (Proof){}
-
 	rpc Get (Key) returns (Item){
 		option (google.api.http) = {
 			get: "/v1/immurestproxy/item/{key}"
 		};
 	};
-
-	rpc GetSV (Key) returns (StructuredItem){};
 
 	rpc SafeGet(SafeGetOptions) returns (SafeItem){
 		option (google.api.http) = {
@@ -412,16 +452,12 @@ service ImmuService {
 		};
 	};
 
-	rpc SafeGetSV(SafeGetOptions) returns (SafeStructuredItem){};
-
 	rpc SetBatch (KVList) returns (Index){
 		option (google.api.http) = {
 			post: "/v1/immurestproxy/batch/set"
 			body: "*"
 		};
 	};
-
-	rpc SetBatchSV (SKVList) returns (Index){};
 
 	rpc GetBatch (KeyList) returns (ItemList){
 		option (google.api.http) = {
@@ -430,7 +466,12 @@ service ImmuService {
 		};
 	};
 
-	rpc GetBatchSV (KeyList) returns (StructuredItemList){};
+	rpc ExecAllOps (Ops) returns (Index){
+		option (google.api.http) = {
+			post: "/v1/immurestproxy/batch/atomic/set"
+			body: "*"
+		};
+	};
 
 	rpc Scan(ScanOptions) returns (ItemList){
 		option (google.api.http) = {
@@ -439,11 +480,15 @@ service ImmuService {
 		};
 	};
 
-	rpc ScanSV(ScanOptions) returns (StructuredItemList){};
-
 	rpc Count(KeyPrefix) returns (ItemsCount){
 		option (google.api.http) = {
 			get: "/v1/immurestproxy/item/count/{prefix}"
+		};
+	};
+
+	rpc CountAll(google.protobuf.Empty) returns (ItemsCount){
+		option (google.api.http) = {
+			get: "/v1/immurestproxy/item/countall"
 		};
 	};
 
@@ -478,15 +523,12 @@ service ImmuService {
 		};
 	};
 
-	rpc ByIndexSV(Index) returns (StructuredItem){};
-
-	rpc History(Key) returns (ItemList){
+	rpc History(HistoryOptions) returns (ItemList){
 		option (google.api.http) = {
-			get: "/v1/immurestproxy/history/{key}"
+			post: "/v1/immurestproxy/history"
+			body: "*"
 		};
 	};
-
-	rpc HistorySV(Key) returns (StructuredItemList){};
 
 	rpc Health (google.protobuf.Empty) returns (HealthResponse){
 		option (google.api.http) = {
@@ -502,6 +544,11 @@ service ImmuService {
 			body: "*"
 		};
 	};
+	rpc GetReference (Key) returns (Item){
+		option (google.api.http) = {
+			get: "/v1/immurestproxy/reference/{key}"
+		};
+	};
 	rpc SafeReference (SafeReferenceOptions) returns (Proof){
 		option (google.api.http) = {
 			post: "/v1/immurestproxy/safe/reference"
@@ -514,14 +561,12 @@ service ImmuService {
 			body: "*"
 		};
 	};
-	rpc ZScan (ZScanOptions) returns (ItemList){
+	rpc ZScan (ZScanOptions) returns (ZItemList){
 		option (google.api.http) = {
 			post: "/v1/immurestproxy/zscan"
 			body: "*"
 		};
 	};
-
-	rpc ZScanSV (ZScanOptions) returns (StructuredItemList){};
 
 	rpc SafeZAdd (SafeZAddOptions) returns (Proof){
 		option (google.api.http) = {
@@ -536,8 +581,6 @@ service ImmuService {
 			body: "*"
 		};
 	};
-
-	rpc IScanSV (IScanOptions) returns (SPage){};
 
 	rpc Dump(google.protobuf.Empty) returns (stream pb.KVList) {
 		option (google.api.http) = {

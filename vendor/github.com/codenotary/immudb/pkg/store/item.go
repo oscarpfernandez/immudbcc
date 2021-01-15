@@ -30,7 +30,7 @@ func itemToSchema(key []byte, item *badger.Item) (*schema.Item, error) {
 		key = item.KeyCopy(key)
 	}
 
-	v, ts := unwrapValueWithTS(value)
+	v, ts := UnwrapValueWithTS(value)
 
 	return &schema.Item{
 		Key:   key,
@@ -49,6 +49,13 @@ func checkKey(key []byte) error {
 func checkSet(key []byte) error {
 	if len(key) == 0 || isReservedKey(key) {
 		return ErrInvalidSet
+	}
+	return nil
+}
+
+func checkReference(key []byte) error {
+	if len(key) == 0 || isReservedKey(key) {
+		return ErrInvalidReference
 	}
 	return nil
 }

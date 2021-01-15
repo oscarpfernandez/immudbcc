@@ -12,6 +12,32 @@
     "application/json"
   ],
   "paths": {
+    "/v1/immurestproxy/batch/atomic/set": {
+      "post": {
+        "operationId": "ExecAllOps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/schemaIndex"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/schemaOps"
+            }
+          }
+        ],
+        "tags": [
+          "ImmuService"
+        ]
+      }
+    },
     "/v1/immurestproxy/batch/get": {
       "post": {
         "operationId": "GetBatch",
@@ -194,8 +220,8 @@
         "security": []
       }
     },
-    "/v1/immurestproxy/history/{key}": {
-      "get": {
+    "/v1/immurestproxy/history": {
+      "post": {
         "operationId": "History",
         "responses": {
           "200": {
@@ -207,11 +233,12 @@
         },
         "parameters": [
           {
-            "name": "key",
-            "in": "path",
+            "name": "body",
+            "in": "body",
             "required": true,
-            "type": "string",
-            "format": "byte"
+            "schema": {
+              "$ref": "#/definitions/schemaHistoryOptions"
+            }
           }
         ],
         "tags": [
@@ -316,6 +343,22 @@
             "format": "byte"
           }
         ],
+        "tags": [
+          "ImmuService"
+        ]
+      }
+    },
+    "/v1/immurestproxy/item/countall": {
+      "get": {
+        "operationId": "CountAll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/schemaItemsCount"
+            }
+          }
+        },
         "tags": [
           "ImmuService"
         ]
@@ -553,6 +596,31 @@
             "schema": {
               "$ref": "#/definitions/schemaReferenceOptions"
             }
+          }
+        ],
+        "tags": [
+          "ImmuService"
+        ]
+      }
+    },
+    "/v1/immurestproxy/reference/{key}": {
+      "get": {
+        "operationId": "GetReference",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/schemaItem"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "byte"
           }
         ],
         "tags": [
@@ -806,7 +874,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/schemaItemList"
+              "$ref": "#/definitions/schemaZItemList"
             }
           }
         },
@@ -991,19 +1059,6 @@
         }
       }
     },
-    "schemaContent": {
-      "type": "object",
-      "properties": {
-        "timestamp": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "payload": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
     "schemaCreateUserRequest": {
       "type": "object",
       "properties": {
@@ -1052,6 +1107,27 @@
         },
         "version": {
           "type": "string"
+        }
+      }
+    },
+    "schemaHistoryOptions": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "format": "byte"
+        },
+        "offset": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "limit": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "reverse": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -1240,6 +1316,31 @@
         }
       }
     },
+    "schemaOp": {
+      "type": "object",
+      "properties": {
+        "KVs": {
+          "$ref": "#/definitions/schemaKeyValue"
+        },
+        "ZOpts": {
+          "$ref": "#/definitions/schemaZAddOptions"
+        },
+        "ROpts": {
+          "$ref": "#/definitions/schemaReferenceOptions"
+        }
+      }
+    },
+    "schemaOps": {
+      "type": "object",
+      "properties": {
+        "Operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/schemaOp"
+          }
+        }
+      }
+    },
     "schemaPage": {
       "type": "object",
       "properties": {
@@ -1320,6 +1421,9 @@
         "key": {
           "type": "string",
           "format": "byte"
+        },
+        "index": {
+          "$ref": "#/definitions/schemaIndex"
         }
       }
     },
@@ -1344,25 +1448,6 @@
         "root": {
           "type": "string",
           "format": "byte"
-        }
-      }
-    },
-    "schemaSPage": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/schemaStructuredItem"
-          }
-        },
-        "pageNum": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "more": {
-          "type": "boolean",
-          "format": "boolean"
         }
       }
     },
@@ -1411,17 +1496,6 @@
         }
       }
     },
-    "schemaSafeStructuredItem": {
-      "type": "object",
-      "properties": {
-        "item": {
-          "$ref": "#/definitions/schemaStructuredItem"
-        },
-        "proof": {
-          "$ref": "#/definitions/schemaProof"
-        }
-      }
-    },
     "schemaSafeZAddOptions": {
       "type": "object",
       "properties": {
@@ -1458,6 +1532,15 @@
         }
       }
     },
+    "schemaScore": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "schemaSetActiveUserRequest": {
       "type": "object",
       "properties": {
@@ -1480,45 +1563,6 @@
         "publicKey": {
           "type": "string",
           "format": "byte"
-        }
-      }
-    },
-    "schemaStructuredItem": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string",
-          "format": "byte"
-        },
-        "value": {
-          "$ref": "#/definitions/schemaContent"
-        },
-        "index": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "schemaStructuredItemList": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/schemaStructuredItem"
-          }
-        }
-      }
-    },
-    "schemaStructuredKeyValue": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string",
-          "format": "byte"
-        },
-        "value": {
-          "$ref": "#/definitions/schemaContent"
         }
       }
     },
@@ -1585,15 +1629,48 @@
           "format": "byte"
         },
         "score": {
-          "type": "number",
-          "format": "double"
+          "$ref": "#/definitions/schemaScore"
         },
         "key": {
           "type": "string",
           "format": "byte"
+        },
+        "index": {
+          "$ref": "#/definitions/schemaIndex"
         }
       },
       "description": "Why use double as score type?\nBecause it is not purely about the storage size, but also use cases.\n64-bit floating point double gives a lot of flexibility and dynamic range, at the expense of having only 53-bits of integer."
+    },
+    "schemaZItem": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "$ref": "#/definitions/schemaItem"
+        },
+        "score": {
+          "type": "number",
+          "format": "double"
+        },
+        "currentOffset": {
+          "type": "string",
+          "format": "byte"
+        },
+        "index": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "schemaZItemList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/schemaZItem"
+          }
+        }
+      }
     },
     "schemaZScanOptions": {
       "type": "object",
@@ -1613,6 +1690,12 @@
         "reverse": {
           "type": "boolean",
           "format": "boolean"
+        },
+        "min": {
+          "$ref": "#/definitions/schemaScore"
+        },
+        "max": {
+          "$ref": "#/definitions/schemaScore"
         }
       }
     }

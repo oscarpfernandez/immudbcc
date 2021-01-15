@@ -129,19 +129,9 @@ func readDocumentFromDB(numWorkers int, docID, jsonPath string) {
 }
 
 func openReadFile(path string) (io.ReadCloser, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
+	return os.Open(path)
 }
 
 func openWriteFile(path string) (io.WriteCloser, error) {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
+	return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 }

@@ -12,7 +12,7 @@ github.com/beorn7/perks/quantile
 github.com/cespare/xxhash
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/codenotary/immudb v0.8.0
+# github.com/codenotary/immudb v0.8.1
 ## explicit
 github.com/codenotary/immudb/cmd/helper
 github.com/codenotary/immudb/cmd/immuclient/service/constants
@@ -22,6 +22,7 @@ github.com/codenotary/immudb/pkg/api/schema
 github.com/codenotary/immudb/pkg/auth
 github.com/codenotary/immudb/pkg/client
 github.com/codenotary/immudb/pkg/client/cache
+github.com/codenotary/immudb/pkg/client/rootservice
 github.com/codenotary/immudb/pkg/client/timestamp
 github.com/codenotary/immudb/pkg/immuos
 github.com/codenotary/immudb/pkg/logger

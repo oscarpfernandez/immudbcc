@@ -14,19 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package timestamp
+package rootservice
 
 import (
-	"time"
+	"context"
 )
 
-type timestampDefault struct{}
-
-// NewDefaultTimestamp ...
-func NewDefaultTimestamp() (TsGenerator, error) {
-	return &timestampDefault{}, nil
-}
-
-func (w *timestampDefault) Now() time.Time {
-	return time.Now()
+type UUIDProvider interface {
+	CurrentUUID(ctx context.Context) (string, error)
 }

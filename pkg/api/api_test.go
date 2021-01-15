@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Ensure that the ImmuClientMock implements ImmuClient interface.
+var _ immuclient.ImmuClient = &ImmuClientMock{}
+
 // ImmuClientMock defines an inversion of control mock.
 type ImmuClientMock struct {
 	mu *sync.RWMutex

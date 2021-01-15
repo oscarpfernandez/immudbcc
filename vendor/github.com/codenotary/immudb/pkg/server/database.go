@@ -39,55 +39,53 @@ type Db struct {
 // OpenDb Opens an existing Database from disk
 func OpenDb(op *DbOptions, log logger.Logger) (*Db, error) {
 	var err error
+
 	db := &Db{
 		Logger:  log,
 		options: op,
 	}
+
 	dbDir := filepath.Join(op.GetDbRootPath(), op.GetDbName())
 	_, dbErr := os.Stat(dbDir)
+
 	if os.IsNotExist(dbErr) {
 		return nil, fmt.Errorf("Missing database directories")
 	}
+
 	db.Store, err = store.Open(store.DefaultOptions(dbDir, db.Logger))
-	if err != nil {
-		db.Logger.Errorf("Unable to open store: %s", err)
-		return nil, err
-	}
-	return db, nil
+
+	return db, logErr(db.Logger, "Unable to open store: %s", err)
 }
 
 // NewDb Creates a new Database along with it's directories and files
 func NewDb(op *DbOptions, log logger.Logger) (*Db, error) {
 	var err error
+
 	db := &Db{
 		Logger:  log,
 		options: op,
 	}
+
 	if op.GetInMemoryStore() {
 		db.Logger.Infof("Starting with in memory store")
 		storeOpts, badgerOpts := store.DefaultOptions("", db.Logger)
 		badgerOpts = badgerOpts.WithInMemory(true)
 		db.Store, err = store.Open(storeOpts, badgerOpts)
-		if err != nil {
-			db.Logger.Errorf("Unable to open store: %s", err)
-			return nil, err
-		}
-	} else {
-		dbDir := filepath.Join(op.GetDbRootPath(), op.GetDbName())
-		if _, dbErr := os.Stat(dbDir); os.IsExist(dbErr) {
-			return nil, fmt.Errorf("Database directories already exist")
-		}
-		if err = os.MkdirAll(dbDir, os.ModePerm); err != nil {
-			db.Logger.Errorf("Unable to create data folder: %s", err)
-			return nil, err
-		}
-		db.Store, err = store.Open(store.DefaultOptions(dbDir, db.Logger))
-		if err != nil {
-			db.Logger.Errorf("Unable to open store: %s", err)
-			return nil, err
-		}
+		return db, logErr(db.Logger, "Unable to open store: %s", err)
 	}
-	return db, nil
+
+	dbDir := filepath.Join(op.GetDbRootPath(), op.GetDbName())
+
+	if _, dbErr := os.Stat(dbDir); dbErr == nil {
+		return nil, fmt.Errorf("Database directories already exist")
+	}
+
+	if err = os.MkdirAll(dbDir, os.ModePerm); err != nil {
+		return nil, logErr(db.Logger, "Unable to create data folder: %s", err)
+	}
+
+	db.Store, err = store.Open(store.DefaultOptions(dbDir, db.Logger))
+	return db, logErr(db.Logger, "Unable to open store: %s", err)
 }
 
 //Set ...
@@ -115,24 +113,6 @@ func (d *Db) CurrentRoot(e *empty.Empty) (*schema.Root, error) {
 	return root, err
 }
 
-// SetSV ...
-func (d *Db) SetSV(skv *schema.StructuredKeyValue) (*schema.Index, error) {
-	kv, err := skv.ToKV()
-	if err != nil {
-		return nil, err
-	}
-	return d.Set(kv)
-}
-
-//GetSV ...
-func (d *Db) GetSV(k *schema.Key) (*schema.StructuredItem, error) {
-	it, err := d.Get(k)
-	if err != nil {
-		return nil, err
-	}
-	return it.ToSItem()
-}
-
 //SafeSet ...
 func (d *Db) SafeSet(opts *schema.SafeSetOptions) (*schema.Proof, error) {
 	return d.Store.SafeSet(*opts)
@@ -141,29 +121,6 @@ func (d *Db) SafeSet(opts *schema.SafeSetOptions) (*schema.Proof, error) {
 //SafeGet ...
 func (d *Db) SafeGet(opts *schema.SafeGetOptions) (*schema.SafeItem, error) {
 	return d.Store.SafeGet(*opts)
-}
-
-//SafeSetSV ...
-func (d *Db) SafeSetSV(sopts *schema.SafeSetSVOptions) (*schema.Proof, error) {
-	kv, err := sopts.Skv.ToKV()
-	if err != nil {
-		return nil, err
-	}
-	opts := &schema.SafeSetOptions{
-		Kv:        kv,
-		RootIndex: sopts.RootIndex,
-	}
-	return d.SafeSet(opts)
-}
-
-//SafeGetSV ...
-func (d *Db) SafeGetSV(opts *schema.SafeGetOptions) (*schema.SafeStructuredItem, error) {
-	it, err := d.SafeGet(opts)
-	ssitem, err := it.ToSafeSItem()
-	if err != nil {
-		return nil, err
-	}
-	return ssitem, err
 }
 
 // SetBatch ...
@@ -187,36 +144,19 @@ func (d *Db) GetBatch(kl *schema.KeyList) (*schema.ItemList, error) {
 	return list, nil
 }
 
-//SetBatchSV ...
-func (d *Db) SetBatchSV(skvl *schema.SKVList) (*schema.Index, error) {
-	kvl, err := skvl.ToKVList()
-	if err != nil {
-		return nil, err
-	}
-	return d.SetBatch(kvl)
-}
-
-//GetBatchSV ...
-func (d *Db) GetBatchSV(kl *schema.KeyList) (*schema.StructuredItemList, error) {
-	list, err := d.GetBatch(kl)
-	if err != nil {
-		return nil, err
-	}
-	return list.ToSItemList()
-}
-
-//ScanSV ...
-func (d *Db) ScanSV(opts *schema.ScanOptions) (*schema.StructuredItemList, error) {
-	list, err := d.Store.Scan(*opts)
-	if err != nil {
-		return nil, err
-	}
-	return list.ToSItemList()
+// ExecAllOps ...
+func (d *Db) ExecAllOps(operations *schema.Ops) (*schema.Index, error) {
+	return d.Store.ExecAllOps(operations)
 }
 
 //Count ...
 func (d *Db) Count(prefix *schema.KeyPrefix) (*schema.ItemsCount, error) {
 	return d.Store.Count(*prefix)
+}
+
+// CountAll ...
+func (d *Db) CountAll() *schema.ItemsCount {
+	return &schema.ItemsCount{Count: d.Store.CountAll()}
 }
 
 // Inclusion ...
@@ -234,41 +174,14 @@ func (d *Db) ByIndex(index *schema.Index) (*schema.Item, error) {
 	return d.Store.ByIndex(*index)
 }
 
-//ByIndexSV ...
-func (d *Db) ByIndexSV(index *schema.Index) (*schema.StructuredItem, error) {
-	item, err := d.Store.ByIndex(*index)
-	if err != nil {
-		return nil, err
-	}
-	return item.ToSItem()
-}
-
 //BySafeIndex ...
 func (d *Db) BySafeIndex(sio *schema.SafeIndexOptions) (*schema.SafeItem, error) {
 	return d.Store.BySafeIndex(*sio)
 }
 
 //History ...
-func (d *Db) History(key *schema.Key) (*schema.ItemList, error) {
-	list, err := d.Store.History(*key)
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
-//HistorySV ...
-func (d *Db) HistorySV(key *schema.Key) (*schema.StructuredItemList, error) {
-	list, err := d.Store.History(*key)
-	if err != nil {
-		return nil, err
-	}
-
-	slist, err := list.ToSItemList()
-	if err != nil {
-		return nil, err
-	}
-	return slist, err
+func (d *Db) History(options *schema.HistoryOptions) (*schema.ItemList, error) {
+	return d.Store.History(options)
 }
 
 //Health ...
@@ -279,12 +192,14 @@ func (d *Db) Health(*empty.Empty) (*schema.HealthResponse, error) {
 
 //Reference ...
 func (d *Db) Reference(refOpts *schema.ReferenceOptions) (index *schema.Index, err error) {
-	index, err = d.Store.Reference(refOpts)
-	if err != nil {
-		return nil, err
-	}
 	d.Logger.Debugf("reference options: %v", refOpts)
-	return index, nil
+	return d.Store.Reference(refOpts)
+}
+
+//Reference ...
+func (d *Db) GetReference(refOpts *schema.Key) (index *schema.Item, err error) {
+	d.Logger.Debugf("getReference options: %v", refOpts)
+	return d.Store.GetReference(*refOpts)
 }
 
 //SafeReference ...
@@ -298,17 +213,8 @@ func (d *Db) ZAdd(opts *schema.ZAddOptions) (*schema.Index, error) {
 }
 
 // ZScan ...
-func (d *Db) ZScan(opts *schema.ZScanOptions) (*schema.ItemList, error) {
+func (d *Db) ZScan(opts *schema.ZScanOptions) (*schema.ZItemList, error) {
 	return d.Store.ZScan(*opts)
-}
-
-//ZScanSV ...
-func (d *Db) ZScanSV(opts *schema.ZScanOptions) (*schema.StructuredItemList, error) {
-	list, err := d.Store.ZScan(*opts)
-	if err != nil {
-		return nil, err
-	}
-	return list.ToSItemList()
 }
 
 //SafeZAdd ...
@@ -324,15 +230,6 @@ func (d *Db) Scan(opts *schema.ScanOptions) (*schema.ItemList, error) {
 //IScan ...
 func (d *Db) IScan(opts *schema.IScanOptions) (*schema.Page, error) {
 	return d.Store.IScan(*opts)
-}
-
-//IScanSV ...
-func (d *Db) IScanSV(opts *schema.IScanOptions) (*schema.SPage, error) {
-	page, err := d.Store.IScan(*opts)
-	if err != nil {
-		return nil, err
-	}
-	return page.ToSPage()
 }
 
 //Dump ...

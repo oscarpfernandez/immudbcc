@@ -127,72 +127,6 @@ func (t *Store) CurrentRoot() (root *schema.Root, err error) {
 	return
 }
 
-// SetBatch adds many entries at once
-func (t *Store) SetBatch(list schema.KVList, options ...WriteOption) (index *schema.Index, err error) {
-	if err = list.Validate(); err != nil {
-		return nil, err
-	}
-	opts := makeWriteOptions(options...)
-	txn := t.db.NewTransactionAt(math.MaxUint64, true)
-	defer txn.Discard()
-
-	tsEntries := t.tree.NewBatch(&list)
-
-	for i, kv := range list.KVs {
-		if err = checkKey(kv.Key); err != nil {
-			return nil, err
-		}
-		if err = txn.SetEntry(&badger.Entry{
-			Key:   kv.Key,
-			Value: wrapValueWithTS(kv.Value, tsEntries[i].ts),
-		}); err != nil {
-			err = mapError(err)
-			return
-		}
-	}
-
-	ts := tsEntries[len(tsEntries)-1].ts
-	index = &schema.Index{
-		Index: ts - 1,
-	}
-
-	for _, leafEntry := range tsEntries {
-		if err = txn.SetEntry(&badger.Entry{
-			Key:      treeKey(uint8(0), leafEntry.ts-1),
-			Value:    refTreeKey(*leafEntry.h, *leafEntry.r),
-			UserMeta: bitTreeEntry,
-		}); err != nil {
-			err = mapError(err)
-			return
-		}
-	}
-
-	cb := func(err error) {
-		if err == nil {
-			for _, entry := range tsEntries {
-				t.tree.Commit(entry)
-			}
-		} else {
-			for _, entry := range tsEntries {
-				t.tree.Discard(entry)
-			}
-		}
-
-		if opts.asyncCommit {
-			t.wg.Done()
-		}
-	}
-
-	if opts.asyncCommit {
-		t.wg.Add(1)
-		err = mapError(txn.CommitAt(ts, cb)) // cb will be executed in a new goroutine
-	} else {
-		err = mapError(txn.CommitAt(ts, nil))
-		cb(err)
-	}
-	return
-}
-
 // Set adds a new entry
 func (t *Store) Set(kv schema.KeyValue, options ...WriteOption) (index *schema.Index, err error) {
 	opts := makeWriteOptions(options...)
@@ -206,10 +140,9 @@ func (t *Store) Set(kv schema.KeyValue, options ...WriteOption) (index *schema.I
 
 	if err = txn.SetEntry(&badger.Entry{
 		Key:   kv.Key,
-		Value: wrapValueWithTS(kv.Value, tsEntry.ts),
+		Value: WrapValueWithTS(kv.Value, tsEntry.ts),
 	}); err != nil {
-		err = mapError(err)
-		return
+		return nil, mapError(err)
 	}
 
 	index = &schema.Index{
@@ -221,8 +154,7 @@ func (t *Store) Set(kv schema.KeyValue, options ...WriteOption) (index *schema.I
 		Value:    refTreeKey(*tsEntry.h, *tsEntry.r),
 		UserMeta: bitTreeEntry,
 	}); err != nil {
-		err = mapError(err)
-		return
+		return nil, mapError(err)
 	}
 
 	cb := func(err error) {
@@ -247,7 +179,7 @@ func (t *Store) Set(kv schema.KeyValue, options ...WriteOption) (index *schema.I
 	return
 }
 
-// Get fetches the entry having the specified key
+// Get fetches the entry having the specified key or resolve the reference with the specified key
 func (t *Store) Get(key schema.Key) (item *schema.Item, err error) {
 	if err = checkKey(key.Key); err != nil {
 		return nil, err
@@ -255,23 +187,24 @@ func (t *Store) Get(key schema.Key) (item *schema.Item, err error) {
 	txn := t.db.NewTransactionAt(math.MaxUint64, false)
 	defer txn.Discard()
 	i, err := txn.Get(key.Key)
+	if err != nil {
+		return nil, mapError(err)
+	}
 
-	if err == nil && i.UserMeta()&bitReferenceEntry == bitReferenceEntry {
-		var refkey []byte
+	if i.UserMeta()&bitReferenceEntry == bitReferenceEntry {
+		var refKey []byte
 		err = i.Value(func(val []byte) error {
-			refkey, _ = unwrapValueWithTS(val)
+			refKey, _ = UnwrapValueWithTS(val)
 			return nil
 		})
-		if ref, err := txn.Get(refkey); err == nil {
-			return itemToSchema(refkey, ref)
+		k, _, _ := UnwrapZIndexReference(refKey)
+		i, err = txn.Get(k)
+		if err != nil {
+			return nil, mapError(err)
 		}
 	}
 
-	if err != nil {
-		err = mapError(err)
-		return
-	}
-	return itemToSchema(key.Key, i)
+	return itemToSchema(i.Key(), i)
 }
 
 // CountAll returns the total number of entries
@@ -291,26 +224,31 @@ func (t *Store) CountAll() (count uint64) {
 // Count returns the number of entris having the specified key prefix
 func (t *Store) Count(prefix schema.KeyPrefix) (count *schema.ItemsCount, err error) {
 	if isReservedKey(prefix.Prefix) {
-		err = ErrInvalidKeyPrefix
-		return
+		return nil, ErrInvalidKeyPrefix
 	}
+
 	txn := t.db.NewTransactionAt(math.MaxUint64, false)
 	defer txn.Discard()
+
 	count = &schema.ItemsCount{}
 	it := txn.NewKeyIterator(prefix.Prefix, badger.IteratorOptions{})
 	defer it.Close()
+
 	for it.Rewind(); it.Valid(); it.Next() {
 		count.Count++
 	}
+
 	return
 }
 
 func (t *Store) itemAt(readTs uint64) (index uint64, key, value []byte, err error) {
 	index = readTs - 1
 	var refkey []byte
+
 	// cache reference lookup
 	t.tree.RLock()
 	defer t.tree.RUnlock()
+
 	if key := t.tree.rcache.Get(index); key != nil {
 		refkey = key.([]byte)
 	}
@@ -348,15 +286,17 @@ func (t *Store) itemAt(readTs uint64) (index uint64, key, value []byte, err erro
 	// disk value lookup
 	txn := t.db.NewTransactionAt(math.MaxInt64, false)
 	defer txn.Discard()
+
 	it := txn.NewKeyIterator(key, badger.IteratorOptions{})
 	defer it.Close()
+
 	var item *schema.Item
 	for it.Rewind(); it.Valid(); it.Next() {
 		i, err := itemToSchema(key, it.Item())
 		if err != nil {
 			return 0, nil, nil, err
 		}
-		// there are multiple possible versions of a key. Here we retrieve the one with the correct timestamp
+		// there are multiple possible versions of a key. Choosing the one with the correct timestamp
 		if i.Index == index {
 			item = i
 			break
@@ -389,21 +329,37 @@ func (t *Store) ByIndex(index schema.Index) (item *schema.Item, err error) {
 }
 
 // History fetches the complete history of entries for the specified key
-func (t *Store) History(key schema.Key) (list *schema.ItemList, err error) {
-	if isReservedKey(key.Key) {
+func (t *Store) History(options *schema.HistoryOptions) (list *schema.ItemList, err error) {
+	if isReservedKey(options.Key) {
 		err = ErrInvalidKey
 		return
 	}
 	txn := t.db.NewTransactionAt(math.MaxInt64, false)
 	defer txn.Discard()
-	it := txn.NewKeyIterator(key.Key, badger.IteratorOptions{})
+
+	it := txn.NewKeyIterator(options.Key, badger.IteratorOptions{
+		Reverse: options.Reverse,
+	})
 	defer it.Close()
 
 	var items []*schema.Item
 	for it.Rewind(); it.Valid(); it.Next() {
-		item, err := itemToSchema(key.Key, it.Item())
+		item, err := itemToSchema(options.Key, it.Item())
 		if err != nil {
 			return nil, err
+		}
+		if options.Reverse {
+			if options.Offset != 0 && options.Offset >= item.Index {
+				continue
+			}
+		} else {
+			if options.Offset != 0 && options.Offset <= item.Index {
+				continue
+			}
+		}
+
+		if items != nil && uint64(len(items)) == options.Limit {
+			break
 		}
 		items = append(items, item)
 	}
@@ -413,108 +369,35 @@ func (t *Store) History(key schema.Key) (list *schema.ItemList, err error) {
 	return
 }
 
-// Reference adds a new entry who's value is an existing key
-func (t *Store) Reference(refOpts *schema.ReferenceOptions, options ...WriteOption) (index *schema.Index, err error) {
-	opts := makeWriteOptions(options...)
-	if isReservedKey(refOpts.Key) {
-		err = ErrInvalidKey
-		return
-	}
-	if isReservedKey(refOpts.Reference) {
-		err = ErrInvalidReference
-		return
-	}
-	if err != nil {
-		return
-	}
+// ZAdd adds a score for an existing key in a sorted set
+// As a parameter of ZAddOptions is possible to provide the associated index of the provided key. In this way, when resolving reference, the specified version of the key will be returned.
+// If the index is not provided the resolution will use only the key and last version of the item will be returned
+// If ZAddOptions.index is provided key is optional
+func (t *Store) ZAdd(zaddOpts schema.ZAddOptions, options ...WriteOption) (index *schema.Index, err error) {
 	txn := t.db.NewTransactionAt(math.MaxUint64, true)
 	defer txn.Discard()
 
-	i, err := txn.Get(refOpts.Key)
-	if err != nil {
-		err = mapError(err)
-		return
-	}
-
-	tsEntry := t.tree.NewEntry(refOpts.Reference, i.Key())
-
-	if err = txn.SetEntry(&badger.Entry{
-		Key:      refOpts.Reference,
-		Value:    wrapValueWithTS(i.Key(), tsEntry.ts),
-		UserMeta: bitReferenceEntry,
-	}); err != nil {
-		err = mapError(err)
-		return
-	}
-
-	index = &schema.Index{
-		Index: tsEntry.ts - 1,
-	}
-
-	if err = txn.SetEntry(&badger.Entry{
-		Key:      treeKey(uint8(0), tsEntry.ts-1),
-		Value:    refTreeKey(*tsEntry.h, *tsEntry.r),
-		UserMeta: bitTreeEntry,
-	}); err != nil {
-		err = mapError(err)
-		return
-	}
-
-	cb := func(err error) {
-		if err == nil {
-			t.tree.Commit(tsEntry)
-		} else {
-			t.tree.Discard(tsEntry)
-		}
-		if opts.asyncCommit {
-			t.wg.Done()
-		}
-	}
-
-	if opts.asyncCommit {
-		t.wg.Add(1)
-		err = mapError(txn.CommitAt(tsEntry.ts, cb)) // cb will be executed in a new goroutine
-	} else {
-		err = mapError(txn.CommitAt(tsEntry.ts, nil))
-		cb(err)
-	}
-
-	return index, err
-}
-
-// ZAdd adds a score for an existing key in the specified sorted set
-func (t *Store) ZAdd(zaddOpts schema.ZAddOptions, options ...WriteOption) (index *schema.Index, err error) {
 	opts := makeWriteOptions(options...)
-	if err = checkKey(zaddOpts.Key); err != nil {
+	if err = checkKey(zaddOpts.Key); err != nil && zaddOpts.Index == nil {
 		return nil, err
 	}
 	if err = checkSet(zaddOpts.Set); err != nil {
 		return nil, err
 	}
-	txn := t.db.NewTransactionAt(math.MaxUint64, true)
-	defer txn.Discard()
 
-	i, err := txn.Get(zaddOpts.Key)
+	ik, referenceValue, err := t.getSortedSetKeyVal(txn, &zaddOpts, false)
 	if err != nil {
-		err = mapError(err)
 		return nil, err
 	}
 
-	ik, err := SetKey(zaddOpts.Key, zaddOpts.Set, zaddOpts.Score)
-	if err != nil {
-		err = mapError(err)
-		return nil, err
-	}
-
-	tsEntry := t.tree.NewEntry(ik, i.Key())
+	tsEntry := t.tree.NewEntry(ik, referenceValue)
 
 	if err = txn.SetEntry(&badger.Entry{
 		Key:      ik,
-		Value:    wrapValueWithTS(i.Key(), tsEntry.ts),
+		Value:    WrapValueWithTS(referenceValue, tsEntry.ts),
 		UserMeta: bitReferenceEntry,
 	}); err != nil {
-		err = mapError(err)
-		return nil, err
+		return nil, mapError(err)
 	}
 
 	index = &schema.Index{
@@ -526,8 +409,7 @@ func (t *Store) ZAdd(zaddOpts schema.ZAddOptions, options ...WriteOption) (index
 		Value:    refTreeKey(*tsEntry.h, *tsEntry.r),
 		UserMeta: bitTreeEntry,
 	}); err != nil {
-		err = mapError(err)
-		return
+		return nil, mapError(err)
 	}
 
 	cb := func(err error) {
@@ -548,8 +430,94 @@ func (t *Store) ZAdd(zaddOpts schema.ZAddOptions, options ...WriteOption) (index
 		err = mapError(txn.CommitAt(tsEntry.ts, nil))
 		cb(err)
 	}
-
 	return index, err
+}
+
+// getSortedSetKeyVal return a key value pair that represent a sorted set entry.
+// If skipPersistenceCheck is true and index is not provided reference lookup is disabled.
+// This is used in Ops, to enable an key value creation with reference insertion in the same transaction.
+func (t *Store) getSortedSetKeyVal(txn *badger.Txn, zaddOpts *schema.ZAddOptions, skipPersistenceCheck bool) (k, v []byte, err error) {
+
+	var referenceValue []byte
+	var index = &schema.Index{}
+	var key []byte
+	if zaddOpts.Index != nil {
+		if !skipPersistenceCheck {
+			// convert to internal timestamp for itemAt, that returns the index
+			_, key, _, err = t.itemAt(zaddOpts.Index.Index + 1)
+			if err != nil {
+				return nil, nil, mapError(err)
+			}
+			if len(zaddOpts.Key) > 0 && bytes.Compare(key, zaddOpts.Key) != 0 {
+				return nil, nil, ErrIndexKeyMismatch
+			}
+		} else {
+			key = zaddOpts.Key
+		}
+		// here the index is appended the reference value
+		// In case that skipPersistenceCheck == true index need to be assigned carefully
+		index = zaddOpts.Index
+	} else {
+		var i *badger.Item
+		i, err = txn.Get(zaddOpts.Key)
+		if err != nil {
+			return nil, nil, mapError(err)
+		}
+		key = i.KeyCopy(nil)
+		if bytes.Compare(key, zaddOpts.Key) != 0 {
+			return nil, nil, ErrIndexKeyMismatch
+		}
+		key = zaddOpts.Key
+		// Index ( i.Version() - 1 ) has not to be stored inside the reference if not submitted by the client. This is needed to permit verifications in SDKs
+		index = nil
+	}
+	ik := BuildSetKey(key, zaddOpts.Set, zaddOpts.Score.Score, index)
+
+	// append the index to the reference. In this way the resolution will be index based
+	referenceValue = WrapZIndexReference(key, index)
+
+	return ik, referenceValue, err
+}
+
+//
+func (t *Store) getReferenceVal(txn *badger.Txn, rOpts *schema.ReferenceOptions, skipPersistenceCheck bool) (v []byte, err error) {
+	var index = &schema.Index{}
+	var key []byte
+	if rOpts.Index != nil {
+		if !skipPersistenceCheck {
+			// convert to internal timestamp for itemAt, that returns the index
+			_, key, _, err = t.itemAt(rOpts.Index.Index + 1)
+			if err != nil {
+				return nil, mapError(err)
+			}
+			if len(rOpts.Key) > 0 && bytes.Compare(key, rOpts.Key) != 0 {
+				return nil, ErrIndexKeyMismatch
+			}
+		} else {
+			key = rOpts.Key
+		}
+		// append the index to the reference. In this way the resolution will be index based
+		// In case that skipPersistenceCheck == true index need to be assigned carefully
+		index = rOpts.Index
+	} else {
+		var i *badger.Item
+		i, err = txn.Get(rOpts.Key)
+		if err != nil {
+			return nil, mapError(err)
+		}
+		key = i.KeyCopy(nil)
+		if bytes.Compare(key, rOpts.Key) != 0 {
+			return nil, ErrIndexKeyMismatch
+		}
+		key = rOpts.Key
+		// Index ( i.Version() - 1 ) has not to be stored inside the reference if not submitted by the client. This is needed to permit verifications in SDKs
+		index = nil
+	}
+
+	// append the timestamp to the reference key. In this way equal keys will be returned sorted by timestamp and the resolution will be index based
+	v = WrapZIndexReference(key, index)
+
+	return v, err
 }
 
 // FlushToDisk flushes cached data from memory to disk
@@ -562,18 +530,17 @@ func (t *Store) FlushToDisk() {
 
 // Dump returns a dump of the database
 func (t *Store) Dump(kvChan chan *pb.KVList) (err error) {
-	defer t.tree.Unlock()
 	t.tree.Lock()
+	defer t.tree.Unlock()
+
+	defer close(kvChan)
+
+	if t.tree.w == 0 {
+		return nil
+	}
+
 	t.tree.flush()
 
-	var emptyCaches = true
-	for _, c := range t.tree.caches {
-		tail := c.Tail()
-		if tail == 0 {
-			continue
-		}
-		emptyCaches = false
-	}
 	stream := t.db.NewStreamAt(t.tree.w)
 	stream.NumGo = 16
 	stream.LogPrefix = "Badger.Streaming"
@@ -582,16 +549,9 @@ func (t *Store) Dump(kvChan chan *pb.KVList) (err error) {
 		kvChan <- list
 		return nil
 	}
-	//workaround possible badger bug
-	//ReadTs should not be retrieved for managed DB
-	if !emptyCaches {
-		// Run the stream
-		if err = stream.Orchestrate(context.Background()); err != nil {
-			return err
-		}
-	}
-	close(kvChan)
-	return err
+
+	// Run the stream
+	return stream.Orchestrate(context.Background())
 }
 
 // Restore restores a database

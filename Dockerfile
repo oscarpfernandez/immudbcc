@@ -1,6 +1,6 @@
-FROM golang:1.14
+FROM golang:1.15
 
-RUN apt-get -y update && apt-get install -y jq
+RUN apt-get -y update && apt-get install -y jq uuid-runtime
 RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.32.2
 
 ENV GO111MODULE=on

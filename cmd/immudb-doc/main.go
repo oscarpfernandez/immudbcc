@@ -17,9 +17,11 @@ func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
 	inJSONPath := fsWrite.String("input-json", "", "JSON path of the file to store")
 	numWorkers := fsWrite.Int("workers", 50, "number of workers")
+	writeDocID := fsWrite.String("doc-id", "", "document ID")
 
 	fsRead := flag.NewFlagSet("read", flag.ContinueOnError)
 	outJSONPath := fsRead.String("output-json", "", "JSON path of the file to read")
+	readDocID := fsRead.String("doc-id", "", "document ID")
 
 	if len(os.Args) <= 1 {
 		fmt.Printf(os.Args[0] + " <read | write>  [flags]\n")
@@ -53,25 +55,25 @@ func main() {
 	}()
 
 	if os.Args[1] == "write" && fsWrite.Parsed() {
-		if *inJSONPath == "" {
+		if *inJSONPath == "" || *writeDocID == "" {
 			fsWrite.PrintDefaults()
 			os.Exit(1)
 		} else {
-			writeDocumentToDB(*numWorkers, *inJSONPath)
+			writeDocumentToDB(*numWorkers, *writeDocID, *inJSONPath)
 		}
 	}
 
 	if os.Args[1] == "read" && fsRead.Parsed() {
-		if *outJSONPath == "" {
+		if *outJSONPath == "" || *readDocID == "" {
 			fsWrite.PrintDefaults()
 			os.Exit(1)
 		} else {
-			readDocumentFromDB(*numWorkers, *outJSONPath)
+			readDocumentFromDB(*numWorkers, *readDocID, *outJSONPath)
 		}
 	}
 }
 
-func writeDocumentToDB(numWorkers int, jsonPath string) {
+func writeDocumentToDB(numWorkers int, docID, jsonPath string) {
 	if _, err := os.Stat(jsonPath); os.IsExist(err) {
 		log.Fatalf("File does not exist: %s", err)
 	}
@@ -89,7 +91,7 @@ func writeDocumentToDB(numWorkers int, jsonPath string) {
 	}
 
 	now := time.Now()
-	result, err := apiManager.StoreDocument(context.Background(), "docID", jsonReader)
+	result, err := apiManager.StoreDocument(context.Background(), docID, jsonReader)
 	if err != nil {
 		log.Fatalf("Failed to store document: %v", err)
 	}
@@ -98,7 +100,7 @@ func writeDocumentToDB(numWorkers int, jsonPath string) {
 	log.Printf("Result hash: Index(%d), Hash(%s)", result.Index, result.Hash)
 }
 
-func readDocumentFromDB(numWorkers int, jsonPath string) {
+func readDocumentFromDB(numWorkers int, docID, jsonPath string) {
 	jsonWriter, err := openWriteFile(jsonPath)
 	if err != nil {
 		log.Fatalf("Failed to open file: %v", err)
@@ -112,7 +114,7 @@ func readDocumentFromDB(numWorkers int, jsonPath string) {
 	}
 
 	now := time.Now()
-	result, err := apiManager.GetDocument(context.Background(), "docID")
+	result, err := apiManager.GetDocument(context.Background(), docID)
 	if err != nil {
 		log.Fatalf("Failed to store document: %v", err)
 	}
@@ -127,19 +129,9 @@ func readDocumentFromDB(numWorkers int, jsonPath string) {
 }
 
 func openReadFile(path string) (io.ReadCloser, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
+	return os.Open(path)
 }
 
 func openWriteFile(path string) (io.WriteCloser, error) {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
+	return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 }

@@ -14,6 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Ensure that the ImmuClientMock implements ImmuClient interface.
+var _ immuclient.ImmuClient = &ImmuClientMock{}
+
 // ImmuClientMock defines an inversion of control mock.
 type ImmuClientMock struct {
 	mu *sync.RWMutex
@@ -41,7 +44,7 @@ func (m *ImmuClientMock) ByIndex(ctx context.Context, index uint64) (*immuschema
 	return m.byIndexFn(ctx, index)
 }
 
-func TestManager_StoreDocument(t *testing.T) {
+func TestManagerStoreGetDocument(t *testing.T) {
 	type KeyValue struct {
 		Index uint64
 		Key   string
@@ -120,7 +123,7 @@ func TestManager_StoreDocument(t *testing.T) {
 				{Key: "docID/squadName/string", Value: []byte("Super hero squad")},
 				{Key: "docID/homeTown/string", Value: []byte("Metro City")},
 				{Key: "docID/members/[1.3]/powers/[0.3]/string", Value: []byte("Million tonne punch")},
-				{Key: "manifest/docID", Value: []byte(`{"id":"docID",
+				{Key: "objectManifest/docID", Value: []byte(`{"id":"docID",
 					"indexes":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],
 					"hash":"8a882c474f519a42bbf13adc6f5b0343ba56afa162bdc110078a9c6c49cba9de"
 				}`)},

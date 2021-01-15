@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,10 +19,23 @@ type PropertyEntry struct {
 }
 
 func (p PropertyEntry) DissectKeyURI() (string, []string, string) {
+	if !hasKeyFormat(p.KeyURI) {
+		panic(fmt.Sprintf("property '%s' has invalid format", p.KeyURI))
+	}
 	keys := strings.Split(p.KeyURI, "/")
 	lastElemIdx := len(keys) - 1
 
 	return keys[0], keys[1:lastElemIdx], keys[lastElemIdx]
+}
+
+// Key format: <docID>/<s>/(<s>/<s>)*/<type>
+var keyRegExp = regexp.MustCompile(`^\S+\/\S+(\/\S+)*\/(?:nil|string|bool|float64)$`)
+
+// hasKeyFormat checks if the current node of the path describes and array element.
+func hasKeyFormat(s string) bool {
+	// Checks for Arrays definitions of the format "[%d.%d]" where the first
+	// parameter describes the current index and the second the total capacity.
+	return keyRegExp.MatchString(s)
 }
 
 // PropertyEntryList defines a list of property key-value pairs.
@@ -39,13 +54,18 @@ func (p PropertyEntryList) Less(i, j int) bool {
 
 type PropertyHash struct {
 	Index uint64 // Index of property DB entry.
+	Key   string
 	Hash  []byte // Hash of property DB entry.
 }
 
 func CreatePropertyHash(index uint64, key, value []byte) *PropertyHash {
 	digest := immuapi.Digest(index, key, value)
 
-	return &PropertyHash{Index: index, Hash: digest[:]}
+	return &PropertyHash{
+		Index: index,
+		Key:   string(key),
+		Hash:  digest[:],
+	}
 }
 
 // Properties defined a list of property index hashes pairs.

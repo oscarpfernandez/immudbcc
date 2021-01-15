@@ -163,21 +163,52 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 }
 
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
+	docDetails, err := m.getDocumentDetails(ctx, docId)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Print("Reconstructing JSON object...")
+	rawObject := doc.PropertyListToRaw(docDetails.propertyEntryList)
+	payload, err := json.MarshalIndent(rawObject, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Object Read succesfull: index(%d) - keyID(%s)", docDetails.objectManifestIndex, docDetails.objectManifestKey)
+
+	return &GetDocumentResult{
+		ID:      docId,
+		Payload: payload,
+		Index:   docDetails.objectManifestIndex,
+		Hash:    docDetails.propertyHashList.Hash(),
+	}, nil
+}
+
+type documentDetails struct {
+	objectManifestIndex uint64
+	objectManifestKey   string
+	objectManifest      *ObjectManifest
+	propertyEntryList   doc.PropertyEntryList
+	propertyHashList    doc.PropertyHashList
+}
+
+func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*documentDetails, error) {
 	docManifestKey := []byte("manifest/" + docId)
 
-	log.Printf("Reading object manifest: DocumentID(%s)", docManifestKey)
+	log.Printf("Reading object objectManifest: DocumentID(%s)", docManifestKey)
 	docManifestItem, err := m.client.Get(ctx, docManifestKey)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Object manifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
+	log.Printf("Object objectManifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
 
 	objectManifest := &ObjectManifest{}
 	if err := json.Unmarshal(docManifestItem.Value.GetPayload(), objectManifest); err != nil {
 		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
-	log.Printf("Object manifest: Key(%s) - Indexes(%v)", string(docManifestItem.Key), objectManifest.Indexes)
+	log.Printf("Object objectManifest: Key(%s) - Indexes(%v)", string(docManifestItem.Key), objectManifest.Indexes)
 
 	propertyList := doc.PropertyEntryList{}
 	propertyHashList := doc.PropertyHashList{}
@@ -196,19 +227,74 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 		propertyHashList = append(propertyHashList, hash)
 	}
 
-	log.Print("Reconstructing JSON object...")
-	rawObject := doc.PropertyListToRaw(propertyList)
-	payload, err := json.MarshalIndent(rawObject, "", "  ")
+	return &documentDetails{
+		objectManifestIndex: docManifestItem.Index,
+		objectManifestKey:   string(docManifestItem.Key),
+		objectManifest:      objectManifest,
+		propertyEntryList:   propertyList,
+		propertyHashList:    propertyHashList,
+	}, nil
+}
+
+func (m *Manager) UpdateDocument(ctx context.Context, docID string, key string, value []byte) (*GetDocumentResult, error) {
+	docDetails, err := m.getDocumentDetails(ctx, docID)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Object Read succesfull: index(%d) - keyID(%s)", docManifestItem.Index, string(docManifestItem.Key))
+
+	propertyKey := docID + "/" + key
+
+	hashList := docDetails.propertyHashList
+	manifest := docDetails.objectManifest
+
+	found := false
+	// Search for the property in the object manifest, and only replace that.
+	for i, hash := range hashList {
+		if hash.Key == propertyKey {
+			oldDBIndex := hash.Index
+
+			// Set the new property.
+			idx, err := m.client.Set(ctx, []byte(propertyKey), value)
+			if err != nil {
+				return nil, err
+			}
+
+			// Update the hash list to include the new property.
+			newDBIndex := idx.Index
+			docDetails.propertyHashList[i] = doc.CreatePropertyHash(newDBIndex, []byte(key), value)
+
+			manifIndexes := manifest.Indexes
+			for pos, idx := range manifIndexes {
+				if idx == oldDBIndex {
+					manifIndexes[pos] = newDBIndex
+				}
+			}
+			// Update the manifest's hash list.
+			manifest.Indexes = manifIndexes
+
+			// Update the manifest's global hash.
+			manifest.Hash = hashList.Hash()
+
+			found = true
+			break
+		}
+	}
+
+	// Could not find and updated property.
+	if !found {
+		return nil, fmt.Errorf("document docID=%s does not have key=%s", key, docID)
+	}
+
+	// Save the new object manifest.
+	index, err := m.writeDocumentManifest(ctx, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("unable to store manifes of object '%s': %v", docID, err)
+	}
 
 	return &GetDocumentResult{
-		ID:      docId,
-		Index:   docManifestItem.Index,
-		Payload: payload,
-		Hash:    propertyHashList.Hash(),
+		ID:    docID,
+		Index: index,
+		Hash:  manifest.Hash,
 	}, nil
 }
 

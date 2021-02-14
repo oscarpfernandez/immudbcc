@@ -117,6 +117,7 @@ func PropertyNil(keys []string) PropertyEntry {
 		Value:  nil,
 	}
 }
+
 // PropertyString converts a property path with string value to a PropertyEntry.
 func PropertyString(keys []string, value string) PropertyEntry {
 	return PropertyEntry{

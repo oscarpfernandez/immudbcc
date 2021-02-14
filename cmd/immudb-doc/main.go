@@ -13,6 +13,8 @@ import (
 	"github.com/oscarpfernandez/immudbcc/pkg/server"
 )
 
+// This is a simple command line tool in order to perform some simple integration
+// tests with the API.
 func main() {
 	fsWrite := flag.NewFlagSet("write", flag.ContinueOnError)
 	inJSONPath := fsWrite.String("input-json", "", "JSON path of the file to store")

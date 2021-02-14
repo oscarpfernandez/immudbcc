@@ -46,17 +46,23 @@ func (c *Config) WithClientOptions(options *immuclient.Options) *Config {
 	return c
 }
 
+// ObjectManifest defines the top level object that describes a document in the
+// Database, including the object ID of said document, the indexes of each of its
+// properties and the global hash of the document (comprised by the hash of hashes,
+// sorted according to the associated property index).
 type ObjectManifest struct {
 	ObjectID string   `json:"id"`
 	Indexes  []uint64 `json:"indexes"`
 	Hash     string   `json:"hash"`
 }
 
+// StoreDocumentResult represents the insertion result of a document.
 type StoreDocumentResult struct {
 	Index uint64
 	Hash  string
 }
 
+// GetDocumentResult represents the result of fetching a document.
 type GetDocumentResult struct {
 	ID      string
 	Index   uint64
@@ -162,6 +168,7 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 	}, nil
 }
 
+// GetDocument allows the extraction of a document provided its global ID.
 func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentResult, error) {
 	docDetails, err := m.getDocumentDetails(ctx, docId)
 	if err != nil {
@@ -185,6 +192,8 @@ func (m *Manager) GetDocument(ctx context.Context, docId string) (*GetDocumentRe
 	}, nil
 }
 
+// documentDetails represents the underlying properties required to describe
+// and store a document.
 type documentDetails struct {
 	objectManifestIndex uint64
 	objectManifestKey   string
@@ -193,6 +202,7 @@ type documentDetails struct {
 	propertyHashList    doc.PropertyHashList
 }
 
+// getDocumentDetails fetches from the database the details of a given document.
 func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*documentDetails, error) {
 	docManifestKey := []byte("manifest/" + docId)
 
@@ -236,6 +246,9 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 	}, nil
 }
 
+// UpdateDocument allows the update of a given property of a document.
+// Here the underlying assumption for the implementation is that updates
+// are fairly rare and limited in scope.
 func (m *Manager) UpdateDocument(ctx context.Context, docID string, key string, value []byte) (*GetDocumentResult, error) {
 	docDetails, err := m.getDocumentDetails(ctx, docID)
 	if err != nil {
@@ -298,6 +311,7 @@ func (m *Manager) UpdateDocument(ctx context.Context, docID string, key string, 
 	}, nil
 }
 
+// writeDocumentManifest persists in the Database the document manifest descriptor.
 func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest) (uint64, error) {
 	objectManifestKey := []byte(fmt.Sprintf("manifest/%s", om.ObjectID))
 

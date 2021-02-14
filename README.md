@@ -178,8 +178,8 @@ document properties are fetched in parallel.
 
 ## 2.3 Object Update:
 
-Given the nature of the applications that require a immutable database, it is fair to assume that updates will be not
-very frequent, and far between. Therefore, the proposed API only considers single property updates.
+Given the nature of the applications that require a immutable database, it is fair to assume that updates will be
+sporadically and far between. Therefore, the proposed API only considers single property updates.
 
 Also, given the non-transactional nature of ImmuDB, it is assumed that the caller ofn this API will guarantee that a given
 document is not getting updated concurrently. If that happens, the multiple callers with end-up with a fragmented result 
@@ -202,3 +202,7 @@ To execute the previous commands in a Docker:
 ```
 docker build -t immudb-cc -f Dockerfile .
 ```
+
+# 4. Author:
+
+This project was designed and coded by Oscar Fernandez <oscar.pl.fernandez@gmail.com>

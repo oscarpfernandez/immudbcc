@@ -1,5 +1,9 @@
 package server
 
+// This package serves the purpose of facilitating the testing of the project
+// by using an embedded Server version of ImmuDB. This makes the infrastructure
+// perspective of the project much more manageable.
+
 import (
 	"log"
 	"os"
@@ -10,12 +14,14 @@ import (
 	immuserver "github.com/codenotary/immudb/pkg/server"
 )
 
+// Config represents the basic configuration parameters of the server.
 type Config struct {
 	AuthEnabled   bool
 	LogFile       string
 	serverOptions immuserver.Options
 }
 
+// Server represents the a server instance and its state.
 type Server struct {
 	conf   Config
 	server immuserver.ImmuServerIf
@@ -23,6 +29,7 @@ type Server struct {
 	file   *os.File
 }
 
+// New creates a new Server instance.
 func New(c Config) (*Server, error) {
 	flogger, file, err := immulogger.NewFileLogger("immuserver ", c.LogFile)
 	if err != nil {
@@ -39,6 +46,7 @@ func New(c Config) (*Server, error) {
 	}, nil
 }
 
+// Start launches a server instance in a go-routine.
 func (s *Server) Start() {
 	go func() {
 		if err := s.server.Start(); err != nil {
@@ -48,6 +56,7 @@ func (s *Server) Start() {
 	time.Sleep(50 * time.Millisecond)
 }
 
+// Stop immediately stops the server instance and cleans up.
 func (s *Server) Stop() error {
 	defer func() {
 		s.cleanupServerFiles()
@@ -61,6 +70,7 @@ func (s *Server) Stop() error {
 	return nil
 }
 
+// cleanupServerFiles does some house keeping chores.
 func (s *Server) cleanupServerFiles() {
 	os.RemoveAll(s.conf.serverOptions.Dir)  // remove db
 	os.Remove(s.conf.serverOptions.Logfile) // remove log file

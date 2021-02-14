@@ -13,11 +13,14 @@ import (
 	immuapi "github.com/codenotary/immudb/pkg/api"
 )
 
+// PropertyEntry represents a given entry from a document, more specifically a
+// given full path key and its associated value.
 type PropertyEntry struct {
 	KeyURI string
 	Value  []byte
 }
 
+// DissectKeyURI returns the underlying parts of a given key format.
 func (p PropertyEntry) DissectKeyURI() (string, []string, string) {
 	if !hasKeyFormat(p.KeyURI) {
 		panic(fmt.Sprintf("property '%s' has invalid format", p.KeyURI))
@@ -52,12 +55,14 @@ func (p PropertyEntryList) Less(i, j int) bool {
 	return strings.Compare(p[i].KeyURI, p[j].KeyURI) <= 0
 }
 
+// PropertyHash represents a hash sum of a given property.
 type PropertyHash struct {
 	Index uint64 // Index of property DB entry.
 	Key   string
 	Hash  []byte // Hash of property DB entry.
 }
 
+// CreatePropertyHash returns a property hash of a given key-value pair.
 func CreatePropertyHash(index uint64, key, value []byte) *PropertyHash {
 	digest := immuapi.Digest(index, key, value)
 
@@ -83,6 +88,7 @@ func (p PropertyHashList) Less(i, j int) bool {
 	return p[i].Index <= p[j].Index
 }
 
+// Hash returns the global hash of a property hash list.
 func (p PropertyHashList) Hash() string {
 	globalSum := sha256.New()
 	for _, hash := range p {
@@ -94,6 +100,7 @@ func (p PropertyHashList) Hash() string {
 	return hex.EncodeToString(sum)
 }
 
+// Indexes returns the associated indexes of a given property hash list.
 func (p PropertyHashList) Indexes() []uint64 {
 	indexes := make([]uint64, len(p))
 	for idx, pp := range p {
@@ -103,6 +110,7 @@ func (p PropertyHashList) Indexes() []uint64 {
 	return indexes
 }
 
+// PropertyNil converts a property path with null value to a PropertyEntry.
 func PropertyNil(keys []string) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/nil",
@@ -110,6 +118,7 @@ func PropertyNil(keys []string) PropertyEntry {
 	}
 }
 
+// PropertyString converts a property path with string value to a PropertyEntry.
 func PropertyString(keys []string, value string) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/string",
@@ -117,6 +126,7 @@ func PropertyString(keys []string, value string) PropertyEntry {
 	}
 }
 
+// PropertyBool converts a property path with boolean values to a PropertyEntry.
 func PropertyBool(keys []string, value bool) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/bool",
@@ -124,6 +134,7 @@ func PropertyBool(keys []string, value bool) PropertyEntry {
 	}
 }
 
+// PropertyFloat64 converts a property path with float64 values to a PropertyEntry.
 func PropertyFloat64(keys []string, value float64) PropertyEntry {
 	return PropertyEntry{
 		KeyURI: strings.Join(keys, "/") + "/float64",
@@ -131,12 +142,14 @@ func PropertyFloat64(keys []string, value float64) PropertyEntry {
 	}
 }
 
+// Float64ToBinary marshals a float64 to its binary representation.
 func Float64ToBinary(v float64) []byte {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], math.Float64bits(v))
 	return buf[:]
 }
 
+// BinaryToFloat64 un-marshals a float64 from its binary representation.
 func BinaryToFloat64(bytes []byte) float64 {
 	bits := binary.BigEndian.Uint64(bytes)
 	float := math.Float64frombits(bits)

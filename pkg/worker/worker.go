@@ -11,7 +11,8 @@ import (
 	immuclient "github.com/codenotary/immudb/pkg/client"
 )
 
-// WriteWorkerPool represents the pool of DB writer go routines.
+// WriteWorkerPool represents the pool of DB writer go routines. This facilitates
+// writing in parallel the multiple key-value pairs that could comprise a document.
 type WriteWorkerPool struct {
 	numWorkers   int
 	isStarted    bool
@@ -97,7 +98,8 @@ func (w *WriteWorkerPool) Stop() {
 }
 
 // worker defines the worker's processing control loop that can be launched as
-// a goroutine.
+// a goroutine. This effectively writes into the Database, returning an insertion
+// result per key-value pair handled.
 func (w *WriteWorkerPool) worker(ctx context.Context) {
 	defer w.wg.Done()
 	for {

@@ -12,6 +12,7 @@ import (
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 )
 
 // Ensure that the ImmuClientMock implements ImmuClient interface.
@@ -21,21 +22,21 @@ var _ immuclient.ImmuClient = &ImmuClientMock{}
 type ImmuClientMock struct {
 	mu *sync.RWMutex
 	immuclient.ImmuClient
-	setFn     func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
-	getFn     func(ctx context.Context, key []byte) (*immuschema.StructuredItem, error)
+	safeSetFn func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error)
+	safeGetFn func(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error)
 	byIndexFn func(ctx context.Context, index uint64) (*immuschema.StructuredItem, error)
 }
 
-func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+func (m *ImmuClientMock) SafeSet(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.setFn(ctx, key, value)
+	return m.safeSetFn(ctx, key, value)
 }
 
-func (m *ImmuClientMock) Get(ctx context.Context, key []byte) (*immuschema.StructuredItem, error) {
+func (m *ImmuClientMock) SafeGet(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.getFn(ctx, key)
+	return m.safeGetFn(ctx, key)
 }
 
 func (m *ImmuClientMock) ByIndex(ctx context.Context, index uint64) (*immuschema.StructuredItem, error) {
@@ -54,8 +55,9 @@ func TestManagerStoreGetDocument(t *testing.T) {
 	tests := map[string]struct {
 		jsonPayload         []byte
 		expStoredProperties []KeyValue
+		expObjectManifest   *ObjectManifest
 	}{
-		"Stored document": {
+		"Stored document #1": {
 			jsonPayload: []byte(`{
 			  "squadName": "Super hero squad",
 			  "homeTown": "Metro City",
@@ -123,10 +125,41 @@ func TestManagerStoreGetDocument(t *testing.T) {
 				{Key: "docID/squadName/string", Value: []byte("Super hero squad")},
 				{Key: "docID/homeTown/string", Value: []byte("Metro City")},
 				{Key: "docID/members/[1.3]/powers/[0.3]/string", Value: []byte("Million tonne punch")},
-				{Key: "objectManifest/docID", Value: []byte(`{"id":"docID",
+				{Key: "manifest/docID", Value: []byte(`{"id":"docID",
 					"indexes":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],
-					"hash":"8a882c474f519a42bbf13adc6f5b0343ba56afa162bdc110078a9c6c49cba9de"
+					"hash":"51175166a32086593b4bdc5d992acca5b45fbaef487c297759e986e603227f27"
 				}`)},
+			},
+			expObjectManifest: &ObjectManifest{
+				ObjectID: "docID",
+				Indexes:  []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24},
+				Hash:     "51175166a32086593b4bdc5d992acca5b45fbaef487c297759e986e603227f27",
+			},
+		},
+		"Stored document #2": {
+			jsonPayload: []byte(`{
+				"people": [
+					{"id": 0,"name": "Monroe Roth"},
+					{"id": 1,"name": "Mullen Rhodes"},
+					{"id": 2,"name": "Mcclure Welch"}
+				]
+			}`),
+			expStoredProperties: []KeyValue{
+				{Key: "docID/people/[0.3]/id/float64", Value: doc.Float64ToBinary(0)},
+				{Key: "docID/people/[0.3]/name/string", Value: []byte("Monroe Roth")},
+				{Key: "docID/people/[1.3]/id/float64", Value: doc.Float64ToBinary(1)},
+				{Key: "docID/people/[1.3]/name/string", Value: []byte("Mullen Rhodes")},
+				{Key: "docID/people/[2.3]/id/float64", Value: doc.Float64ToBinary(2)},
+				{Key: "docID/people/[2.3]/name/string", Value: []byte("Mcclure Welch")},
+				{Key: "manifest/docID", Value: []byte(`{"id":"docID",
+					"indexes":[0,1,2,3,4,5],
+					"hash":"61486e6661a9fe498c8ff50b0f5232e3d2979328faa6316346795067acc0eee6"
+				}`)},
+			},
+			expObjectManifest: &ObjectManifest{
+				ObjectID: "docID",
+				Indexes:  []uint64{0, 1, 2, 3, 4, 5},
+				Hash:     "61486e6661a9fe498c8ff50b0f5232e3d2979328faa6316346795067acc0eee6",
 			},
 		},
 	}
@@ -139,17 +172,17 @@ func TestManagerStoreGetDocument(t *testing.T) {
 			// Define ImmuDB client mock.
 			clientMock := &ImmuClientMock{
 				mu: &sync.RWMutex{},
-				setFn: func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+				safeSetFn: func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 					gotStoredProperties = append(gotStoredProperties, KeyValue{Index: index, Key: string(key), Value: value})
 					defer func() { index++ }()
-					return &immuschema.Index{Index: index}, nil
+					return &immuclient.VerifiedIndex{Index: index}, nil
 				},
-				getFn: func(ctx context.Context, key []byte) (*immuschema.StructuredItem, error) {
+				safeGetFn: func(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error) {
 					for idx, kv := range gotStoredProperties {
 						if kv.Key == string(key) {
-							return &immuschema.StructuredItem{
+							return &immuclient.VerifiedItem{
 								Key:   []byte(kv.Key),
-								Value: &immuschema.Content{Payload: kv.Value},
+								Value: kv.Value,
 								Index: uint64(idx),
 							}, nil
 						}
@@ -170,7 +203,7 @@ func TestManagerStoreGetDocument(t *testing.T) {
 				},
 			}
 
-			conf := DefaultConfig().WithNumberWorkers(5)
+			conf := DefaultConfig().WithNumberWorkers(1)
 			manager := Manager{
 				conf:   *conf,
 				client: clientMock,
@@ -181,10 +214,22 @@ func TestManagerStoreGetDocument(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
+			details, err := manager.getDocumentDetails(context.Background(), "docID")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assert.Equal(t, test.expObjectManifest, details.objectManifest)
+
 			getResult, err := manager.GetDocument(context.Background(), "docID")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+
+			isValid, err := manager.VerifyDocument(context.Background(), "docID", test.expObjectManifest.Hash)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assert.True(t, isValid)
 
 			assert.JSONEq(t, string(test.jsonPayload), string(getResult.Payload))
 			assert.Equal(t, storeResult.Hash, getResult.Hash)

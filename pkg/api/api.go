@@ -100,6 +100,8 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 		return nil, err
 	}
 
+	sort.Sort(entryList)
+
 	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
 		return nil, err
@@ -207,14 +209,14 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 	docManifestKey := []byte("manifest/" + docId)
 
 	log.Printf("Reading object objectManifest: DocumentID(%s)", docManifestKey)
-	docManifestItem, err := m.client.Get(ctx, docManifestKey)
+	docManifestItem, err := m.client.SafeGet(ctx, docManifestKey)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Object objectManifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
 
 	objectManifest := &ObjectManifest{}
-	if err := json.Unmarshal(docManifestItem.Value.GetPayload(), objectManifest); err != nil {
+	if err := json.Unmarshal(docManifestItem.Value, objectManifest); err != nil {
 		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
@@ -237,6 +239,8 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 		propertyHashList = append(propertyHashList, hash)
 	}
 
+	sort.Sort(propertyHashList)
+
 	return &documentDetails{
 		objectManifestIndex: docManifestItem.Index,
 		objectManifestKey:   string(docManifestItem.Key),
@@ -244,6 +248,22 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 		propertyEntryList:   propertyList,
 		propertyHashList:    propertyHashList,
 	}, nil
+}
+
+// VerifyDocument ensures that the stored document hash matches a known global
+// hash, returning True if the integrity of the document is ensured, and False
+// otherwise.
+func (m *Manager) VerifyDocument(ctx context.Context, docID, globalHash string) (bool, error) {
+	result, err := m.getDocumentDetails(ctx, docID)
+	if err != nil {
+		return false, err
+	}
+
+	if result.propertyHashList.Hash() == globalHash {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // UpdateDocument allows the update of a given property of a document.
@@ -267,7 +287,7 @@ func (m *Manager) UpdateDocument(ctx context.Context, docID string, key string, 
 			oldDBIndex := hash.Index
 
 			// Set the new property.
-			idx, err := m.client.Set(ctx, []byte(propertyKey), value)
+			idx, err := m.client.SafeSet(ctx, []byte(propertyKey), value)
 			if err != nil {
 				return nil, err
 			}
@@ -320,7 +340,7 @@ func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest)
 		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
 	}
 
-	idx, err := m.client.Set(ctx, objectManifestKey, documentValue)
+	idx, err := m.client.SafeSet(ctx, objectManifestKey, documentValue)
 	if err != nil {
 		return 0, err
 	}

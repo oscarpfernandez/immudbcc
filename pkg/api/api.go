@@ -100,6 +100,8 @@ func (m *Manager) StoreDocument(ctx context.Context, docID string, r io.Reader) 
 		return nil, err
 	}
 
+	sort.Sort(entryList)
+
 	workers := worker.NewWriteWorkerPool(m.conf.NumberWorkers, m.client)
 	if err := workers.StartWorkers(ctx); err != nil {
 		return nil, err
@@ -237,6 +239,8 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 		propertyHashList = append(propertyHashList, hash)
 	}
 
+	sort.Sort(propertyHashList)
+
 	return &documentDetails{
 		objectManifestIndex: docManifestItem.Index,
 		objectManifestKey:   string(docManifestItem.Key),
@@ -244,6 +248,22 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 		propertyEntryList:   propertyList,
 		propertyHashList:    propertyHashList,
 	}, nil
+}
+
+// VerifyDocument ensures that the stored document hash matches a known global
+// hash, returning True if the integrity of the document is ensured, and False
+// otherwise.
+func (m *Manager) VerifyDocument(ctx context.Context, docID, globalHash string) (bool, error) {
+	result, err := m.getDocumentDetails(ctx, docID)
+	if err != nil {
+		return false, err
+	}
+
+	if result.propertyHashList.Hash() == globalHash {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // UpdateDocument allows the update of a given property of a document.

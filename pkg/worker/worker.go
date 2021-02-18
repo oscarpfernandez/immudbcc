@@ -108,7 +108,7 @@ func (w *WriteWorkerPool) worker(ctx context.Context) {
 			if job != nil {
 				key, value := []byte(job.KeyURI), job.Value
 				log.Printf("Writing property: Key(%s)", key)
-				index, err := w.client.Set(ctx, key, value)
+				index, err := w.client.SafeSet(ctx, key, value)
 				if err != nil {
 					w.errChan <- err
 					continue

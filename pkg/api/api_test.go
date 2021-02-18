@@ -12,6 +12,7 @@ import (
 	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 )
 
 // Ensure that the ImmuClientMock implements ImmuClient interface.
@@ -21,21 +22,21 @@ var _ immuclient.ImmuClient = &ImmuClientMock{}
 type ImmuClientMock struct {
 	mu *sync.RWMutex
 	immuclient.ImmuClient
-	setFn     func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
-	getFn     func(ctx context.Context, key []byte) (*immuschema.StructuredItem, error)
+	safeSetFn func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error)
+	safeGetFn func(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error)
 	byIndexFn func(ctx context.Context, index uint64) (*immuschema.StructuredItem, error)
 }
 
-func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+func (m *ImmuClientMock) SafeSet(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.setFn(ctx, key, value)
+	return m.safeSetFn(ctx, key, value)
 }
 
-func (m *ImmuClientMock) Get(ctx context.Context, key []byte) (*immuschema.StructuredItem, error) {
+func (m *ImmuClientMock) SafeGet(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.getFn(ctx, key)
+	return m.safeGetFn(ctx, key)
 }
 
 func (m *ImmuClientMock) ByIndex(ctx context.Context, index uint64) (*immuschema.StructuredItem, error) {
@@ -139,17 +140,17 @@ func TestManagerStoreGetDocument(t *testing.T) {
 			// Define ImmuDB client mock.
 			clientMock := &ImmuClientMock{
 				mu: &sync.RWMutex{},
-				setFn: func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+				safeSetFn: func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 					gotStoredProperties = append(gotStoredProperties, KeyValue{Index: index, Key: string(key), Value: value})
 					defer func() { index++ }()
-					return &immuschema.Index{Index: index}, nil
+					return &immuclient.VerifiedIndex{Index: index}, nil
 				},
-				getFn: func(ctx context.Context, key []byte) (*immuschema.StructuredItem, error) {
+				safeGetFn: func(ctx context.Context, key []byte, opts ...grpc.CallOption) (*immuclient.VerifiedItem, error) {
 					for idx, kv := range gotStoredProperties {
 						if kv.Key == string(key) {
-							return &immuschema.StructuredItem{
+							return &immuclient.VerifiedItem{
 								Key:   []byte(kv.Key),
-								Value: &immuschema.Content{Payload: kv.Value},
+								Value: kv.Value,
 								Index: uint64(idx),
 							}, nil
 						}

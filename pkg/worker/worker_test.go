@@ -7,22 +7,21 @@ import (
 	"testing"
 
 	"github.com/oscarpfernandez/immudbcc/pkg/doc"
-	"github.com/stretchr/testify/assert"
 
-	immuschema "github.com/codenotary/immudb/pkg/api/schema"
 	immuclient "github.com/codenotary/immudb/pkg/client"
+	"github.com/stretchr/testify/assert"
 )
 
 type ImmuClientMock struct {
 	wg *sync.Mutex
 	immuclient.ImmuClient
-	setFn func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error)
+	safeSetFn func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error)
 }
 
-func (m *ImmuClientMock) Set(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+func (m *ImmuClientMock) SafeSet(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 	m.wg.Lock()
 	defer m.wg.Unlock()
-	return m.setFn(ctx, key, value)
+	return m.safeSetFn(ctx, key, value)
 }
 
 func TestWorker(t *testing.T) {
@@ -67,12 +66,12 @@ func TestWorker(t *testing.T) {
 				index := 0
 				mock := &ImmuClientMock{
 					wg: &sync.Mutex{},
-					setFn: func(ctx context.Context, key []byte, value []byte) (*immuschema.Index, error) {
+					safeSetFn: func(ctx context.Context, key []byte, value []byte) (*immuclient.VerifiedIndex, error) {
 						index++
 						if test.forceWriteError {
 							return nil, fmt.Errorf("write error %d", index)
 						}
-						return &immuschema.Index{Index: uint64(index)}, nil
+						return &immuclient.VerifiedIndex{Index: uint64(index)}, nil
 					},
 				}
 

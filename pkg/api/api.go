@@ -207,14 +207,14 @@ func (m *Manager) getDocumentDetails(ctx context.Context, docId string) (*docume
 	docManifestKey := []byte("manifest/" + docId)
 
 	log.Printf("Reading object objectManifest: DocumentID(%s)", docManifestKey)
-	docManifestItem, err := m.client.Get(ctx, docManifestKey)
+	docManifestItem, err := m.client.SafeGet(ctx, docManifestKey)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Object objectManifest: Index(%d) - Key(%s)", docManifestItem.Index, string(docManifestItem.Key))
 
 	objectManifest := &ObjectManifest{}
-	if err := json.Unmarshal(docManifestItem.Value.GetPayload(), objectManifest); err != nil {
+	if err := json.Unmarshal(docManifestItem.Value, objectManifest); err != nil {
 		fmt.Printf("unmarshal failed")
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (m *Manager) UpdateDocument(ctx context.Context, docID string, key string, 
 			oldDBIndex := hash.Index
 
 			// Set the new property.
-			idx, err := m.client.Set(ctx, []byte(propertyKey), value)
+			idx, err := m.client.SafeSet(ctx, []byte(propertyKey), value)
 			if err != nil {
 				return nil, err
 			}
@@ -320,7 +320,7 @@ func (m *Manager) writeDocumentManifest(ctx context.Context, om *ObjectManifest)
 		return 0, fmt.Errorf("unable to marshall object maifest: %v", err)
 	}
 
-	idx, err := m.client.Set(ctx, objectManifestKey, documentValue)
+	idx, err := m.client.SafeSet(ctx, objectManifestKey, documentValue)
 	if err != nil {
 		return 0, err
 	}

@@ -259,7 +259,13 @@ func (m *Manager) VerifyDocument(ctx context.Context, docID, globalHash string) 
 		return false, err
 	}
 
-	if result.propertyHashList.Hash() == globalHash {
+	// Calculate the Hash from the object's properties.
+	computedHash := result.propertyHashList.Hash()
+
+	// Get the hash recorded in the manifest.
+	recordedHash := result.objectManifest.Hash
+
+	if recordedHash == computedHash && computedHash == globalHash {
 		return true, nil
 	}
 

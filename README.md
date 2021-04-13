@@ -1,6 +1,8 @@
 # immudbcc
 
-The Immudb code challenge: Design and implement a document-like data model based upon ImmuDB.
+Design and implement a document-like data model based upon ImmuDB.
+
+![keeping the good humor is paramount](./waiting.jpeg)
 
 # 1. Problem Statement
 
@@ -22,8 +24,6 @@ In developing your solution, you'll have to make decisions that are related to:
 ---
 
 # 2. Solution Proposal
-
-## 2.1 Object Insertion.
 
 The main solution revolves around the observation that to properly leverage ImmuDB natural features, consists in designing
 a solution capable of marshalling generic JSON objects, and storing each object's properties as a Key-Value entries.
@@ -108,84 +108,6 @@ after the properties' insertion. The object manifest for this specific example w
 
 The API would return as confirmation of the commit, the `index` of the object commit manifest, plus a `global hash`.
 
----
-
-So, let's frame the problem more formally.
-
-For a given JSON document object:
-* Perform the marshaling of the object's tree:
-    * Each path represents the tree's depth-first transversal.
-    * Each path is prefixed by the assigned ObjectID.
-    * Each path is suffixed by the basic type of the associated Value.
-      (According to JSON, `string`, `float64`, `bool` and `null` are supported).
-    * The end result is a set of Key-Value pairs, where the Key is the associated path aforementioned, and the Value is
-    the property associated value.
-
-* The previous set X of Key-Value pairs, can be concurrently stored in the database:
-    * For a given `n-th` Key-Value, insert it in the database, storing in memory the resulting `n-th` Index and Hash.
-        ```
-        indexHashPair  = [ (index_0,hash_0), (index_1,hash_1), ..., (index_n,hash_n) ]
-        ```
-    * Perform the insertions for each element of X.
-    * Sort the `indexHashPair` list, using the `index` as a `sorting criteria`. This ensures that the insertion order
-    (given that it is concurrent) has no influence in subsequent calculations (i.e. global hash).
-* Finally, when all the properties are inserted, we can then mark this insertion as successful by inserting the manifest:
-    * The manifest is essentially a JSON payload containing the object's ID, the list of property indexes that compose
-    it, and the properties' global hash.
-        ```
-        {
-           "id":      "objectID",
-           "hash":    indexHashPair.Hash(),    // GlobalHash(hash_0,  hash_1,  ..., hash_n)
-           "indexes": indexHashPair.Indexes()  // List=[index_a, index_b, ..., index_n]
-        }
-        ```
-    * Store the manifest in the database:
-        ```
-        Set("manifest/objectID", manifest.Marshal())
-        ```
-    * Return the final `index` and the `hash` of the object's manifest. These values in combination with the objectID are
-    the minimal elements required to retrieve the object.
-
-This use case was implemented in such a way it can be done concurrently, which is guaranteed by ImmuDB: all document
-properties and object manifests are written in parallel.
-
----
-
-## 2.2 Object Retrieval:
-
-This essentially leverages the commit manifest acting as a document summary in order to fetch the document's associated
-properties. In essence, it performs the following actions:
-
-* Step #1 - Read database object commit manifest:
-  
-  Fetches the `object manifest` entry associated with a specific `document ID`. From this, all property indexes of the 
-  document's underlying properties are known, as well as the document's global Hash.
-  
-* Step #2 - Fetch all the document's properties:
-  
-  Given that at this point, all the document's property insertion indexes are known, it is now possible to fetch them 
-  all, which is done in parallel. 
-
-* Step #3 - Unmarshal the list of internal Key-Value pairs into the original raw JSON document:
-
-  At this point, given that all the document's sub-properties are loaded, now it is simply required to call the custom 
-  unmarshaller to retrieve the raw JSON document.
-
-Finally, this use case was implemented in such a way it can be done concurrently, which is guaranteed by ImmuDB: all
-document properties are fetched in parallel.
-
----
-
-## 2.3 Object Update:
-
-Given the nature of the applications that require a immutable database, it is fair to assume that updates will be
-sporadically and far between. Therefore, the proposed API only considers single property updates.
-
-Also, given the non-transactional nature of ImmuDB, it is assumed that the caller of this API will guarantee that a given
-document is not getting updated concurrently. If that happens, the multiple callers with end-up with a fragmented result 
-given that each resulting object manifest after the update will point to different set of underlying Key-Values.
-
-
 # 3. How to test and build the project.
 
 To execute the linters and unit tests:
@@ -205,4 +127,11 @@ docker build -t immudb-cc -f Dockerfile .
 
 # 4. Author:
 
-This project was designed and coded by Oscar Fernandez <oscar.pl.fernandez@gmail.com>
+This project was designed and coded by Oscar Fernandez
+
+---
+
+... and if you've read until this point...
+<p align="left">
+  <img width="460" height="300" src="http://www.fillmurray.com/450/302">
+</p>
